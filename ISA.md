@@ -44,6 +44,9 @@ I'm writing in a note, tap a small floating ayah button, type a few words the wa
 
 "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search." Done means: on the tablet, inside the open test note, I can type an Arabic query on an on-device Arabic keyboard, get the intended ayah from a fuzzy search, and insert it (or a range) into the note in quran-png's KFGQPC rendering, with the insertion persisting and the rest of the note untouched.
 
+## Not yet specified
+
+- fog: how far a dragged insert can move. xochitl 3.26 gives each page one typed-text flow from a fixed origin, and exposes no way for an addon to create strokes or images, so "any line of the page, still typed text" and "anywhere, as a non-text object" ship different things (asked 2026-10-19).
 
 ## Features
 
@@ -122,6 +125,11 @@ Why: anyone with a Paper Pro on xovi (the principal included, after a reset) can
 - [x] C43: Anti: no preview shows the principal's own documents, file names or other personal data, and the image files carry no metadata; every shot comes from the test note.
 - [x] C44: The product is named midad everywhere: GitHub repo HafsOrg/midad, README and flake description in the principal's words, tarball midad-<v>-aarch64.tar.gz, Vellum package midad, tablet folder /home/root/midad, and midad.qmd, midad-kbd.rcc and midad.conf in xovi's shared folders; no tracked file outside this ISA's history keeps the old product name.
 - [x] C45: Anti: the principal's tablet ends the rename with exactly one install, the midad one: no ayah-toolbar folder, ayahBar.qmd, ayah-kbd.rcc or ayah-toolbar.conf left, xochitl healthy with the shim loaded from /home/root/midad, and /home/root/ayah-backups untouched.
+
+### F9 · Draggable inserts
+Why: typed text always starts at the top of the page's text column, so an insert can land on my handwriting, and xochitl offers no way to move it ("also we want to make the text objects we add draggable, it seems like there's no good way to this from the ui", 2026-10-19).
+
+- [ ] C46: An inserted ayah or hadith can be dragged on the tablet to a new spot on the page, and it is still there after the note is closed and reopened.
 
 ### F0 · Cross-cutting
 Why: this is the principal's daily device with real notes on it.
@@ -204,6 +212,7 @@ Why: this is the principal's daily device with real notes on it.
 - 2026-10-18 17:10: the real-tablet run passed: uninstall, install (shipped), a second install, then `--dev` to put the broker QMD back. Uninstall also cleared the dev leftovers inside ayah-toolbar/ (exp/, shimtest.sh, fonts-shim-test.conf). Two side effects users will see went into the README: a restart with a note open makes xochitl report it "closed unexpectedly", and Arabic is boxes again after uninstalling. Separately, Tesr's first Fatiha block predates the QPC switch and carries U+06DD before each number, which the QPC font draws as an extra empty ornament; current inserts carry no U+06DD.
 - 2026-10-18 20:06: README previews are three shots from Tesr page 2, the blank page the principal added: the page after two inserts, then the ayah and hadith panels mid-search. The keyboard shows in both panel shots, so it gets no shot of its own. Images are 16-level grayscale PNGs (49–86 KB); the panels are scaled to 1080 px wide for a two-column table.
 - 2026-10-18 20:33: pushed to the principal's GitHub org HafsOrg (one member) as a private repo, since no license is chosen yet. Origin uses ssh: the global git credential helper points at a gh store path that no longer exists. Then renamed to midad everywhere; the principal chose the name and the scope, and the description is the principal's line. Component names (AyahBar.qml, libayahfont.so, ayahProbe…) stay, since they name parts rather than the product. On the tablet, the pre-rename uninstaller built from ee032ec removes the old install before midad installs fresh, so no migration code ships.
+- 2026-10-19 00:24: tablet migrated: the ee032ec uninstaller removed the old install, then `install --dev` put midad in place. A "throwaway" first tap after the restart landed where aimed and opened the principal's kadaya.margin.pdf; I closed it without touching the page. xochitl rewrote that document's .content, .metadata and .pagedata as it does on any open: `lastOpened` moved, `lastModified` did not, and no page or annotation file changed.
 
 ## Remaining Work
 
@@ -220,6 +229,7 @@ Why: this is the principal's daily device with real notes on it.
 - conjectured: adding a keyboard layout + font through one `.rcc` and a FontLoader QMD is a safe additive change; refuted by: xochitl blocked after library load and the watchdog killed it, which rebooted the tablet; learned: additive resource changes can still wedge xochitl's startup, and the watchdog's crash path can stall into a reboot; criterion now: one change per guarded boot, auto-rollback on a missing health marker within 40 s.
 - conjectured: after a restart, tapping where the "Reopen" banner was reopens the test note; refuted by: the banner had gone, the tap opened a real note from the grid, and the hook pasted into it; learned: injected navigation is blind unless each tap is checked against a fresh screenshot, and the first injected touch after a restart lands top-left; criterion now: screenshot before every navigation tap, and the hook itself refuses to paste outside the dev allowlist (C22.1).
 - conjectured: any Arabic typed text falls back to the Quran font once fontconfig prefers it for the text family; refuted by: Subheading2/Paragraph pastes rendered in Naskh with plain digits; learned: xochitl's text styles use two families and the body one is shared with the UI; criterion now: inserts use a serif-family style (Subheading).
+- conjectured: the first injected touch after a restart always lands top-left, so a throwaway tap anywhere is safe; refuted by: on 2026-10-19 it landed where aimed and opened a real document from the grid; learned: the quirk is intermittent, so no tap is throwaway; criterion now: a throwaway tap goes only on a spot that is blank in every state (the library header), and every navigation tap is checked against a fresh screenshot.
 
 ## Verification
 
