@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# rmhook <signal> [value] — send a fixed ayah-hook signal (ayahProbe | ayahInsert) to the
+# tablet's scene view and print the reply.
+set -euo pipefail
+host="${RM_HOST:-root@10.11.99.1}"
+sig="${1:?usage: rmhook ayahProbe | ayahInsert <path>|<x>|<y>}"
+val="${2:-}"
+case "$sig" in ayahProbe|ayahPasteText) ;; *) echo "unknown signal: $sig" >&2; exit 2 ;; esac
+[[ "$val" =~ ^[0-9:|-]*$ ]] || { echo "bad value" >&2; exit 2; }
+ssh -o BatchMode=yes -o ConnectTimeout=8 "$host" "
+  cat /run/xovi-mb-out > /tmp/rmhook.\$\$ & r=\$!
+  sleep 0.3
+  echo '>u$sig:$val' > /run/xovi-mb
+  for i in \$(seq 1 50); do [ -s /tmp/rmhook.\$\$ ] && break; sleep 0.1; done
+  sleep 0.2; kill \$r 2>/dev/null; cat /tmp/rmhook.\$\$; echo; rm -f /tmp/rmhook.\$\$
+"

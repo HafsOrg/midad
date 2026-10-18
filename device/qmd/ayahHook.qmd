@@ -1,0 +1,92 @@
+; rm-ayah-toolbar: fixed-command hook in the open document's scene view.
+;   ayahProbe                      -> JSON state + result of the last paste (read-only)
+;   ayahPasteText:S:A[-B]|x|y      -> paste surah S ayat A..B as Uthmani typed text, with ayah
+;                                     end marks, at view point (x, y)
+; Text comes from /home/root/ayah-toolbar/quran-uthmani.json. Driven from the root-only xovi FIFO.
+
+AFFECT /qml/device/view/documentview/DeviceSceneView.qml
+    IMPORT net.asivery.XoviMessageBroker 2.0
+
+    TRAVERSE ?#root
+        LOCATE AFTER ALL
+        INSERT {
+            XoviMessageBroker {
+                id: ayahHookBroker
+                listeningFor: ["ayahProbe", "ayahPasteText"]
+
+                property var diag: ({})
+                property var quran: null
+
+                function arabicDigits(n) {
+                    return String(n).replace(/[0-9]/g, (d) => "٠١٢٣٤٥٦٧٨٩"[Number(d)]);
+                }
+
+                function composeAyat(s, a, b) {
+                    const ayat = quran.surahs[s - 1];
+                    if (!ayat || a < 1 || b < a || b > ayat.length)
+                        return null;
+                    const parts = [];
+                    for (let i = a; i <= b; i++)
+                        parts.push(ayat[i - 1] + " ۝" + arabicDigits(i));
+                    return parts.join(" ");
+                }
+
+                function pasteText(s, a, b, x, y) {
+                    const text = composeAyat(s, a, b);
+                    if (text === null) {
+                        diag = { error: "range" };
+                        return;
+                    }
+                    Clipboard.setTextFromString(text);
+                    root.moveCursorWithPen(root.viewToScene(Qt.point(x, y)));
+                    root.controller.pasteText(Clipboard.text, SceneController.KeepStyle, SceneController.MergeWithPreviousAction);
+                    diag = { pasted: s + ":" + a + "-" + b, chars: text.length };
+                }
+
+                function startPaste(arg) {
+                    const m = /^([0-9]{1,3}):([0-9]{1,3})(?:-([0-9]{1,3}))?\|([0-9]{1,4})\|([0-9]{1,4})$/.exec(String(arg));
+                    if (!m)
+                        return "ERR bad argument";
+                    const s = Number(m[1]), a = Number(m[2]), b = m[3] ? Number(m[3]) : a;
+                    const x = Number(m[4]), y = Number(m[5]);
+                    if (quran) {
+                        pasteText(s, a, b, x, y);
+                        return JSON.stringify(diag);
+                    }
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("GET", "file:///home/root/ayah-toolbar/quran-uthmani.json");
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState !== XMLHttpRequest.DONE)
+                            return;
+                        try {
+                            quran = JSON.parse(xhr.responseText);
+                            pasteText(s, a, b, x, y);
+                        } catch (e) {
+                            diag = { error: String(e) };
+                        }
+                    };
+                    xhr.send();
+                    return "loading";
+                }
+
+                function onSignalReceived(sgn, message) {
+                    try {
+                        if (sgn === "ayahProbe")
+                            return JSON.stringify({
+                                controller: !!root.controller,
+                                notePage: root.notePage,
+                                textMode: root.textMode,
+                                loaded: !!quran,
+                                diag: diag
+                            });
+                        if (sgn === "ayahPasteText")
+                            return startPaste(message);
+                        return "ERR unknown signal";
+                    } catch (e) {
+                        return "ERR " + e;
+                    }
+                }
+            }
+        }
+    END TRAVERSE
+END AFFECT

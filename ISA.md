@@ -3,7 +3,7 @@ task: "Ayah toolbar with Arabic keyboard and fuzzy search on reMarkable"
 slug: 20261018-031836_rm-ayah-toolbar
 project: rm-ayah-toolbar
 phase: climbing
-progress: 3/22
+progress: 14/23
 started: 2026-10-18T03:18:36+03:00
 updated: 2026-10-18T03:22:00+03:00
 principal_stated_goal: "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search."
@@ -46,10 +46,8 @@ I'm writing in a note, tap a small floating ayah button, type a few words the wa
 
 ## Not yet specified
 
-- fog: insertion primitive — replaying pen strokes through xochitl's input vs writing .rm v6 strokes and reloading vs something else — resolves by a spike on the test note (speed, fidelity, undo, persistence).
-- fog: toolbar host — a QMD patch (with qt-command-executor for helpers) vs an AppLoad window — resolves after reading xochitl's QML structure and floating.qmd.
-- fog: keyboard host — extend xochitl's own keyboard with an Arabic layout vs our own keyboard inside the toolbar panel — resolves after finding how xochitl implements its keyboard and how it loads fonts.
-- fog: where an insert lands (tap point, selection box, next free line) and at what size.
+- fog: toolbar host — our own QML component shipped in an `.rcc` and instantiated by a small QMD in the scene view, vs an AppLoad window — leaning QMD+rcc now that the scene view hook works.
+- fog: where an insert lands and at what size — today it goes to the typed-text cursor nearest the given point, in the default text style; whether to offer heading size or mushaf line breaks is open.
 
 ## Features
 
@@ -63,29 +61,30 @@ Why: search needs Arabic input on the tablet, and the stock keyboard has none, s
 ### F2 · Local renderer
 Why: inserts must look like the mushaf, and must come from our own copy, not png.quran.ws.
 
-- [ ] C4: A local quran-png checkout renders a surah:ayah range (e.g. 1:1-7) to PNG and SVG with networking disabled.
-- [ ] C5: The local render matches png.quran.ws for the same range.
-- [ ] C6: Every one of the 6236 ayat renders without error in a batch export.
+- [x] C4: A local quran-png checkout renders a surah:ayah range (e.g. 1:1-7) to PNG and SVG with networking disabled.
+- [x] C5: The local render matches png.quran.ws for the same range.
+- [x] C6: Every one of the 6236 ayat renders without error in a batch export.
 
 ### F3 · Fuzzy search
 Why: I type ayat from memory, in imla'i spelling and with mistakes, and still need the right one first.
 
-- [ ] C7: Full-text queries with tashkeel stripped return the source ayah at rank 1 for 6236/6236 (identical-text ayat count as a hit).
-- [ ] C8: 3–5-word snippets taken from anywhere in an ayah return the source ayah in the top 5 for ≥ 99% of a seeded 2000-query sample.
-- [ ] C9: Snippets with 1–2 random character edits return the source in the top 5 for ≥ 95% of a seeded 2000-query sample.
-- [ ] C10: Imla'i spellings (alef, hamza, ya, ta marbuta variants, no Uthmani marks) find Uthmani ayat: ≥ 90% rank 1 on a hand-written fixture of ≥ 30 queries.
-- [ ] C11: Reference queries (`2:255`, `البقرة ٢٥٥`, `2:1-5`) resolve to the exact ayah or range at rank 1.
+- [x] C7: Full-text queries with tashkeel stripped return the source ayah at rank 1 for 6236/6236 (identical-text ayat count as a hit).
+- [x] C8: 3–5-word snippets taken from anywhere in an ayah return the source ayah in the top 5 for ≥ 99% of a seeded 2000-query sample.
+- [x] C9: Snippets with 1–2 random character edits return the source in the top 5 for ≥ 95% of a seeded 2000-query sample.
+- [x] C10: Imla'i spellings (alef, hamza, ya, ta marbuta variants, no Uthmani marks) find Uthmani ayat: ≥ 90% rank 1 on a hand-written fixture of ≥ 30 queries.
+- [x] C11: Reference queries (`2:255`, `البقرة ٢٥٥`, `2:1-5`) resolve to the exact ayah or range at rank 1.
 - [ ] C12: Search runs on the tablet with p95 ≤ 200 ms per query.
 
 ### F4 · Insert into the open note
 Why: the point of the whole thing is the ayah on my page, in my note, staying there.
 
-- [ ] C13: A selected ayah appears in the open test note in quran-png's KFGQPC rendering and reads correctly.
-- [ ] C14: A selected range (e.g. 2:1-5) inserts in order.
+- [x] C13: A selected ayah appears in the open test note as Uthmani typed text in a Quran font (Amiri Quran), with ayah end marks, and reads correctly. (refined 2026-10-18 from "quran-png's KFGQPC rendering", see Decisions)
+- [x] C14: A selected range (e.g. 1:1-7) inserts in order.
 - [ ] C15: The insert persists after closing and reopening the note.
 - [ ] C16: An insert of a ≤ 2-line ayah finishes in ≤ 10 s.
-- [ ] C17: The insert can be undone.
+- [x] C17: The insert can be undone in one step.
 - [ ] C18: Anti: content already on the page is unchanged outside the inserted region.
+- [ ] C23: Anti: no general-purpose eval or shell surface ships; the hook accepts only fixed commands with validated arguments.
 
 ### F5 · Toolbar
 Why: one tap from any open note, without leaving it.
@@ -139,6 +138,10 @@ Why: this is the principal's daily device with real notes on it.
 - 2026-10-18 03:37: guarded boots — font-only (`FONTCONFIG_FILE` drop-in) healthy in 10 s and Arabic document titles render; layout-only `ayah-kbd.rcc` healthy in 9 s and "Arabic" appears in the stock language list (xochitl enumerates `:/misc/keyboards/` and names it via the locale). The earlier hang is therefore the runtime FontLoader QMD; it is dropped.
 - 2026-10-18 03:38: observed stock behaviour — after a long-press popup opens, a separate tap on a popup symbol typed the key underneath (ف) instead of أ. Not our layout's doing; revisit only if it bites real use.
 
+- 2026-10-18 03:50: dead ends for inline images — a QML TextEdit's rich-text copy reaches Qt's system clipboard (2 chars pasted back) but xochitl's `Clipboard` ignores in-process changes; `Clipboard.setTextFromString` is plain text (an `<img>` tag pasted literally, undone). A general JS eval bridge was refused by the safety classifier as an RCE surface, so the hook is fixed-command only.
+- 2026-10-18 03:58: principal: "how about using a quran glyph font and adding quran as text instead? wouldn't that make it easier". Spike confirmed it: Uthmani text from quran-png's `words.json` (`rasm_uthmani`) + `۝` + Arabic-Indic number, pasted with `Clipboard.setTextFromString` + `controller.pasteText` at the cursor, renders in Amiri Quran (fontconfig `<accept>` for the serif families typed text uses; UI keeps Noto Naskh). One undo step, saved to the page file. Insertion primitive fog resolved to typed text; `.rm` stroke writing and pen replay dropped. quran-png images stay available for a possible mushaf-exact mode later. C13 refined accordingly.
+- 2026-10-18 03:58: rung — the harness now reports Opus 5.5 for this session, matching the pin.
+
 ## Learning
 
 - conjectured: adding a keyboard layout + font through one `.rcc` and a FontLoader QMD is a safe additive change; refuted by: xochitl blocked after library load and the watchdog killed it, which rebooted the tablet; learned: additive resource changes can still wedge xochitl's startup, and the watchdog's crash path can stall into a reboot; criterion now: one change per guarded boot, auto-rollback on a missing health marker within 40 s.
@@ -148,3 +151,6 @@ Why: this is the principal's daily device with real notes on it.
 - C1: screenshots kbd1 (Arabic in language list) + kbd2 (3 Arabic rows, ⌫, space "Arabic") + kbd4 (ا long-press → أ إ آ ٱ); layout `device/keyboard/ar_SA/keyboard_layout.json`.
 - C2: screenshot kbd3, field reads سبحان الله joined RTL with the الله ligature; font via `device/fonts.conf` + `device/ayah-toolbar.conf`.
 - C3: screenshot kbd5, English layout back and `a` typed after the Arabic text.
+- C4: `unshare -rn bun run render 1 1-7` → 1600×1479 PNG + SVG. C5: sha256 of local == png.quran.ws `?width=1600` (947b0149…). C6: 6236 SVG + 6236 PNG in `out/ayat`.
+- C7–C11: `bun run test` 39 pass / 0 fail (eval suites, seed 42), commit f8fd23d.
+- C13/C14: screenshot q1 — 1:1-7 as Amiri Quran typed text, ۝١–۝٧. C17: screenshots u1/r1 — one undo removes all 7 ayat, redo restores.
