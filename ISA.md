@@ -3,9 +3,9 @@ task: "Ayah toolbar with Arabic keyboard and fuzzy search on reMarkable"
 slug: 20261018-031836_rm-ayah-toolbar
 project: rm-ayah-toolbar
 phase: climbing
-progress: 14/23
+progress: 14/24
 started: 2026-10-18T03:18:36+03:00
-updated: 2026-10-18T03:22:00+03:00
+updated: 2026-10-18T04:15:00+03:00
 principal_stated_goal: "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search."
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 4
@@ -47,7 +47,7 @@ I'm writing in a note, tap a small floating ayah button, type a few words the wa
 ## Not yet specified
 
 - fog: toolbar host — our own QML component shipped in an `.rcc` and instantiated by a small QMD in the scene view, vs an AppLoad window — leaning QMD+rcc now that the scene view hook works.
-- fog: where an insert lands and at what size — today it goes to the typed-text cursor nearest the given point, in the default text style; whether to offer heading size or mushaf line breaks is open.
+- fog: whether to offer mushaf line breaks (the corpus has page/line per word) or Title size as an option — today an insert is its own Subheading paragraph appended at the end of the page's text.
 
 ## Features
 
@@ -78,7 +78,7 @@ Why: I type ayat from memory, in imla'i spelling and with mistakes, and still ne
 ### F4 · Insert into the open note
 Why: the point of the whole thing is the ayah on my page, in my note, staying there.
 
-- [x] C13: A selected ayah appears in the open test note as Uthmani typed text in a Quran font (Amiri Quran), with ayah end marks, and reads correctly. (refined 2026-10-18 from "quran-png's KFGQPC rendering", see Decisions)
+- [x] C13: A selected ayah appears in the open test note as typed text in the KFGQPC Uthmanic HAFS v22 font (from nuqayah/qpc-fonts) with its own v22 text, ornamented ayah numbers included, and reads correctly. (refined twice on 2026-10-18: quran-png images → Amiri Quran text → QPC v22 text, see Decisions)
 - [x] C14: A selected range (e.g. 1:1-7) inserts in order.
 - [ ] C15: The insert persists after closing and reopening the note.
 - [ ] C16: An insert of a ≤ 2-line ayah finishes in ≤ 10 s.
@@ -96,7 +96,8 @@ Why: one tap from any open note, without leaving it.
 ### F0 · Cross-cutting
 Why: this is the principal's daily device with real notes on it.
 
-- [ ] C22: Anti: no document other than the test note is opened or modified during development.
+- [ ] C22: Anti: no document other than the test note is opened or modified during development. VIOLATED 2026-10-18 01:11 UTC — see INC-20261018-ayah-paste-wrong-note; stays open as a standing guard.
+- [ ] C22.1: Anti: during development the hook refuses `ayahPasteText` when the open document is not on the dev allowlist (the test note's id); probe shows the refusal.
 
 ## Test Strategy
 
@@ -141,10 +142,15 @@ Why: this is the principal's daily device with real notes on it.
 - 2026-10-18 03:50: dead ends for inline images — a QML TextEdit's rich-text copy reaches Qt's system clipboard (2 chars pasted back) but xochitl's `Clipboard` ignores in-process changes; `Clipboard.setTextFromString` is plain text (an `<img>` tag pasted literally, undone). A general JS eval bridge was refused by the safety classifier as an RCE surface, so the hook is fixed-command only.
 - 2026-10-18 03:58: principal: "how about using a quran glyph font and adding quran as text instead? wouldn't that make it easier". Spike confirmed it: Uthmani text from quran-png's `words.json` (`rasm_uthmani`) + `۝` + Arabic-Indic number, pasted with `Clipboard.setTextFromString` + `controller.pasteText` at the cursor, renders in Amiri Quran (fontconfig `<accept>` for the serif families typed text uses; UI keeps Noto Naskh). One undo step, saved to the page file. Insertion primitive fog resolved to typed text; `.rm` stroke writing and pen replay dropped. quran-png images stay available for a possible mushaf-exact mode later. C13 refined accordingly.
 - 2026-10-18 03:58: rung — the harness now reports Opus 5.5 for this session, matching the pin.
+- 2026-10-18 04:03: principal: "use one of the text fonts from https://github.com/nuqayah/qpc-fonts instead." Chose `text-mushafs/UthmanicHafs_V22` (family `kfgqpc_hafs_uthmanic_script`) because it ships its own encoded text (`UthmanicHafs v22.json`, 6236 rows); the older `various/UthmanicHafs1 Ver09` lacks U+08F0–U+08F2 used by our Tanzil-style corpus. pango/HarfBuzz check: "text + space + Arabic-Indic digits" draws one ornament for 1, 99, 100, 255, 286; a preceding U+06DD adds a second empty ornament, so it is not used. Amiri removed.
+- 2026-10-18 04:08: typed text has two families — "reMarkable Sans" (Paragraph, Subheading2, lists; also the UI font) and "reMarkable Serif Small" (Title, Subheading). Arabic fallback is QPC for the serif family and Noto Naskh for Sans, so the hook appends each insert as its own Subheading paragraph at the end of the page's text (`selectTextRange(len, len)`, leading newline, `cycleParagraphStyle` guarded by `matchesButtonStyle`). Undo is two steps: style, then paste.
+- 2026-10-18 04:11: incident INC-20261018-ayah-paste-wrong-note — a blind post-restart tap opened the principal's note "Dabt el morag3a" and the hook pasted 2:1-5 into it; undone in two steps, page re-saved without the text, byte-identity unverified (no pre-incident copy). Hook gets a dev allowlist guard (C22.1) before any further paste.
 
 ## Learning
 
 - conjectured: adding a keyboard layout + font through one `.rcc` and a FontLoader QMD is a safe additive change; refuted by: xochitl blocked after library load and the watchdog killed it, which rebooted the tablet; learned: additive resource changes can still wedge xochitl's startup, and the watchdog's crash path can stall into a reboot; criterion now: one change per guarded boot, auto-rollback on a missing health marker within 40 s.
+- conjectured: after a restart, tapping where the "Reopen" banner was reopens the test note; refuted by: the banner had gone, the tap opened a real note from the grid, and the hook pasted into it; learned: injected navigation is blind unless each tap is checked against a fresh screenshot, and the first injected touch after a restart lands top-left; criterion now: screenshot before every navigation tap, and the hook itself refuses to paste outside the dev allowlist (C22.1).
+- conjectured: any Arabic typed text falls back to the Quran font once fontconfig prefers it for the text family; refuted by: Subheading2/Paragraph pastes rendered in Naskh with plain digits; learned: xochitl's text styles use two families and the body one is shared with the UI; criterion now: inserts use a serif-family style (Subheading).
 
 ## Verification
 
@@ -153,4 +159,4 @@ Why: this is the principal's daily device with real notes on it.
 - C3: screenshot kbd5, English layout back and `a` typed after the Arabic text.
 - C4: `unshare -rn bun run render 1 1-7` → 1600×1479 PNG + SVG. C5: sha256 of local == png.quran.ws `?width=1600` (947b0149…). C6: 6236 SVG + 6236 PNG in `out/ayat`.
 - C7–C11: `bun run test` 39 pass / 0 fail (eval suites, seed 42), commit f8fd23d.
-- C13/C14: screenshot q1 — 1:1-7 as Amiri Quran typed text, ۝١–۝٧. C17: screenshots u1/r1 — one undo removes all 7 ayat, redo restores.
+- C13/C14: screenshot q1 — 1:1-7 as Amiri Quran typed text, ۝١–۝٧; re-verified with QPC v22: screenshot styles (1:1 in Title and Subheading render in QPC with ornament) and end (2:1-5 in order, ornaments ١–٥). C17: screenshots u1/r1 — one undo removes all 7 ayat, redo restores.

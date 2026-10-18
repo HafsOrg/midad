@@ -1,8 +1,10 @@
 ; rm-ayah-toolbar: fixed-command hook in the open document's scene view.
 ;   ayahProbe                      -> JSON state + result of the last paste (read-only)
-;   ayahPasteText:S:A[-B]|x|y      -> paste surah S ayat A..B as Uthmani typed text, with ayah
-;                                     end marks, at view point (x, y)
-; Text comes from /home/root/ayah-toolbar/quran-uthmani.json. Driven from the root-only xovi FIFO.
+;   ayahPasteText:S:A[-B]|x|y[|st] -> paste surah S ayat A..B as KFGQPC Hafs typed text, each followed
+;                                     by its Arabic-Indic number (the font draws the ayah ornament),
+;                                     as its own paragraph near view point (x, y), in paragraph style
+;                                     st = t (Title) | s (Subheading, default) | s2 | p (Paragraph)
+; Text comes from /home/root/ayah-toolbar/quran-hafs-v22.json. Driven from the root-only xovi FIFO.
 
 AFFECT /qml/device/view/documentview/DeviceSceneView.qml
     IMPORT net.asivery.XoviMessageBroker 2.0
@@ -27,40 +29,62 @@ AFFECT /qml/device/view/documentview/DeviceSceneView.qml
                         return null;
                     const parts = [];
                     for (let i = a; i <= b; i++)
-                        parts.push(ayat[i - 1] + " ۝" + arabicDigits(i));
+                        parts.push(ayat[i - 1] + " " + arabicDigits(i));
                     return parts.join(" ");
                 }
 
-                function pasteText(s, a, b, x, y) {
+                function paragraphStyle(code) {
+                    switch (code) {
+                    case "t": return ParagraphStyle.Type.Title;
+                    case "s": return ParagraphStyle.Type.Subheading;
+                    case "s2": return ParagraphStyle.Type.Subheading2;
+                    default: return ParagraphStyle.Type.Paragraph;
+                    }
+                }
+
+                function pasteText(s, a, b, x, y, styleCode) {
                     const text = composeAyat(s, a, b);
                     if (text === null) {
                         diag = { error: "range" };
                         return;
                     }
-                    Clipboard.setTextFromString(text);
+                    const c = root.controller;
+                    // Enter text mode, then append at the end of the page's text as a new paragraph,
+                    // so neither the paste nor the style change touches existing text.
                     root.moveCursorWithPen(root.viewToScene(Qt.point(x, y)));
-                    root.controller.pasteText(Clipboard.text, SceneController.KeepStyle, SceneController.MergeWithPreviousAction);
-                    diag = { pasted: s + ":" + a + "-" + b, chars: text.length };
+                    const len = c.rootDocumentLength;
+                    if (len > 0)
+                        c.selectTextRange(len, len);
+                    Clipboard.setTextFromString((len > 0 ? "\n" : "") + text);
+                    c.pasteText(Clipboard.text, SceneController.KeepStyle);
+                    const style = paragraphStyle(styleCode);
+                    const cur = c.textParagraphStyle;
+                    if (!(cur && cur.matchesButtonStyle(style)))
+                        c.cycleParagraphStyle(style);
+                    const after = c.textParagraphStyle;
+                    diag = { pasted: s + ":" + a + "-" + b, chars: text.length, lengthBefore: len,
+                             styled: after ? after.matchesButtonStyle(style) : null };
                 }
 
                 function startPaste(arg) {
-                    const m = /^([0-9]{1,3}):([0-9]{1,3})(?:-([0-9]{1,3}))?\|([0-9]{1,4})\|([0-9]{1,4})$/.exec(String(arg));
+                    const m = /^([0-9]{1,3}):([0-9]{1,3})(?:-([0-9]{1,3}))?\|([0-9]{1,4})\|([0-9]{1,4})(?:\|(t|s|s2|p))?$/.exec(String(arg));
                     if (!m)
                         return "ERR bad argument";
                     const s = Number(m[1]), a = Number(m[2]), b = m[3] ? Number(m[3]) : a;
                     const x = Number(m[4]), y = Number(m[5]);
+                    const styleCode = m[6] || "s";
                     if (quran) {
-                        pasteText(s, a, b, x, y);
+                        pasteText(s, a, b, x, y, styleCode);
                         return JSON.stringify(diag);
                     }
                     const xhr = new XMLHttpRequest();
-                    xhr.open("GET", "file:///home/root/ayah-toolbar/quran-uthmani.json");
+                    xhr.open("GET", "file:///home/root/ayah-toolbar/quran-hafs-v22.json");
                     xhr.onreadystatechange = function() {
                         if (xhr.readyState !== XMLHttpRequest.DONE)
                             return;
                         try {
                             quran = JSON.parse(xhr.responseText);
-                            pasteText(s, a, b, x, y);
+                            pasteText(s, a, b, x, y, styleCode);
                         } catch (e) {
                             diag = { error: String(e) };
                         }
