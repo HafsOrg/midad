@@ -28,7 +28,10 @@ Item {
     property var hadith: null
     readonly property bool ready: mode === "ayah" ? (!!searcher && !!quran && !!surahs)
                                                  : (!!hadithSearcher && !!hadith)
-    property string loadError: ""
+    // Per mode, so a failed hadith load never blocks the ayah search; retried on each open.
+    property var loadErrors: ({})
+    property var loading: ({})
+    readonly property string loadError: loadErrors[mode] || ""
 
     property var results: []
     property int selected: -1
@@ -44,31 +47,45 @@ Item {
         return String(n).replace(/[0-9]/g, (d) => "٠١٢٣٤٥٦٧٨٩"[Number(d)]);
     }
 
-    function readJson(file, done) {
+    function setFlag(name, m, value) {
+        const next = Object.assign({}, bar[name]);
+        next[m] = value;
+        bar[name] = next;
+    }
+
+    function readJson(m, file, done) {
         const xhr = new XMLHttpRequest();
         xhr.open("GET", dataDir + file);
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE)
                 return;
+            setFlag("loading", m, false);
+            if (!xhr.responseText) {
+                setFlag("loadErrors", m, "missing");
+                return;
+            }
             try {
                 done(JSON.parse(xhr.responseText));
             } catch (e) {
-                loadError = file + ": " + e;
+                setFlag("loadErrors", m, file + ": " + e);
             }
         };
         xhr.send();
     }
 
     function loadData() {
-        if (ready || loadError)
+        const m = mode;
+        if (ready || loading[m])
             return;
-        if (mode === "ayah") {
-            readJson("index.json", (j) => { searcher = Search.createSearcher(j); runSearch(); });
-            readJson("quran-hafs-v22.json", (j) => { quran = j.surahs; runSearch(); });
-            readJson("surahs.json", (j) => { surahs = j; runSearch(); });
+        setFlag("loadErrors", m, "");
+        setFlag("loading", m, true);
+        if (m === "ayah") {
+            readJson(m, "index.json", (j) => { searcher = Search.createSearcher(j); runSearch(); });
+            readJson(m, "quran-hafs-v22.json", (j) => { quran = j.surahs; runSearch(); });
+            readJson(m, "surahs.json", (j) => { surahs = j; runSearch(); });
         } else {
-            readJson("hadith-index.json", (j) => { hadithSearcher = makeHadithSearcher(j); runSearch(); });
-            readJson("hadith.json", (j) => { hadith = j; runSearch(); });
+            readJson(m, "hadith-index.json", (j) => { hadithSearcher = makeHadithSearcher(j); runSearch(); });
+            readJson(m, "hadith.json", (j) => { hadith = j; runSearch(); });
         }
     }
 
@@ -410,7 +427,9 @@ Item {
             font.family: bar.uiFont
             font.pixelSize: 28
             color: "#555555"
-            text: bar.loadError ? ("تعذّر التحميل: " + bar.loadError)
+            text: bar.loadError === "missing" ? (bar.mode === "hadith" ? "بيانات الأحاديث لم تُثبَّت على الجهاز بعد"
+                                                                     : "بيانات القرآن غير موجودة على الجهاز")
+                : bar.loadError ? ("تعذّر التحميل: " + bar.loadError)
                 : !bar.ready ? "جارٍ التحميل…"
                 : (query.text.trim() && bar.results.length === 0) ? "لا نتائج"
                 : ""
