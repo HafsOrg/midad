@@ -5,6 +5,7 @@ import QtQuick
 import com.remarkable
 import common
 import "search.js" as Search
+import "hadith-search.js" as HadithSearch
 
 Item {
     id: bar
@@ -16,6 +17,7 @@ Item {
 
     readonly property string dataDir: "file:///home/root/ayah-toolbar/data/"
     readonly property string quranFont: "kfgqpc_hafs_uthmanic_script"
+    readonly property string hadithFont: "Amiri"
     readonly property string uiFont: "Noto Naskh Arabic UI"
 
     // "ayah" or "hadith": which button opened the panel.
@@ -89,9 +91,8 @@ Item {
         }
     }
 
-    // The hadith data worker decides the exact call; kept in one place.
     function makeHadithSearcher(index) {
-        return Search.createSearcher(index);
+        return HadithSearch.createHadithSearcher(index);
     }
 
     function ayahText(s, a) {
@@ -105,6 +106,17 @@ Item {
 
     function hadithSource(item) {
         return hadithBook(item).id === "bukhari" ? "البخاري" : "مسلم";
+    }
+
+    // Arabic-Indic number for citing, without sunnah.com sub-letters ("8a" -> "٨");
+    // empty when the dataset couldn't pin the number.
+    function hadithNumber(item) {
+        return item[1] ? arabicDigits(String(item[1]).replace(/[a-z]+$/i, "")) : "";
+    }
+
+    function hadithCitation(item) {
+        const n = hadithNumber(item);
+        return "(رواه " + hadithSource(item) + (n ? " " + n : "") + ")";
     }
 
     function runSearch() {
@@ -136,7 +148,7 @@ Item {
                 const it = hadith.items[r.id];
                 return {
                     item: it,
-                    ref: hadithBook(it).ar + " · " + arabicDigits(it[1]) + " · " + it[2],
+                    ref: hadithBook(it).ar + (hadithNumber(it) ? " · " + hadithNumber(it) : "") + " · " + it[2],
                     text: it[4]
                 };
             });
@@ -194,7 +206,7 @@ Item {
         const isAyah = mode === "ayah";
         const s = r.surah, a = r.ayah, b = isAyah ? r.ayah + span - 1 : 0;
         const text = isAyah ? compose(s, a, b)
-                            : r.item[4] + " (رواه " + hadithSource(r.item) + " " + arabicDigits(r.item[1]) + ")";
+                            : r.item[4] + " " + hadithCitation(r.item);
         closePanel();
 
         const c = sceneView.controller;
@@ -219,7 +231,7 @@ Item {
             c.cycleParagraphStyle(ParagraphStyle.Type.Subheading);
         }
         c.selectTextRange(start + text.length, start + text.length);
-        lastInsert = { key: isAyah ? s + ":" + a + "-" + b : hadithSource(r.item) + " " + r.item[1],
+        lastInsert = { key: isAyah ? s + ":" + a + "-" + b : hadithCitation(r.item),
                        at: at, length: len };
     }
 
@@ -476,7 +488,7 @@ Item {
                         width: parent.width - 32
                         horizontalAlignment: Text.AlignRight
                         text: modelData.text
-                        font.family: bar.quranFont
+                        font.family: bar.mode === "ayah" ? bar.quranFont : bar.hadithFont
                         font.pixelSize: 40
                         wrapMode: Text.WordWrap
                         maximumLineCount: 2
