@@ -8,6 +8,12 @@ An addon for the reMarkable Paper Pro that makes the tablet usable for Islamic n
 
 It covers the whole Quran (6,236 ayat) and Sahih al-Bukhari and Sahih Muslim (about 13,800 matns). Everything runs on the tablet, offline.
 
+![A note with Ayat al-Kursi in the KFGQPC Quran font and a hadith from Sahih al-Bukhari in Amiri, both inserted by the bar. The آية and حديث buttons on the right open the search panels.](docs/note.png)
+
+| Ayah search: «الحي القيوم» | Hadith search: «انما الاعمال بالنيات» |
+|---|---|
+| ![The ayah panel lists Al Imran 2, Al-Baqarah 255, Taha 111 and Al-Furqan 58 for the query, with Al-Baqarah 255 selected and a stepper for how many ayat to insert.](docs/ayah-search.png) | ![The hadith panel lists Bukhari 1, Muslim 1907, Bukhari 6953 and Bukhari 6689 for the query, each with its book.](docs/hadith-search.png) |
+
 ## Requirements
 
 - A **reMarkable Paper Pro** (codename Ferrari) on **OS 3.26**. Tested on 3.26.0.68 with xovi 0.3.3 and xovi-extensions 19.
