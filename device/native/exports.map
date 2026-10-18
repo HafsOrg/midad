@@ -1,4 +1,4 @@
 {
-  global: _ZN11QTextLayout11beginLayoutEv;
+  global: _ZN11QTextCursor10insertTextERK7QString;
   local: *;
 };
