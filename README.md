@@ -1,6 +1,6 @@
-# rm-ayah-toolbar
+# midad
 
-An addon for the reMarkable Paper Pro that makes the tablet usable for Islamic notes:
+midad is a collection of extensions for the reMarkable Paper Pro that enables Islamic note-taking. (مداد is the ink scholars write with.) It adds:
 
 - an **Arabic keyboard** layout in the stock on-screen keyboard;
 - a **floating search bar** in the note editor: type a few words of an ayah or a hadith the way you remember them (no tashkeel, wrong hamzas, a typo or two), tap the result, and it lands in your note as typed text;
@@ -38,30 +38,30 @@ nix run .#install -- --dev             # dev variant, see Development
 nix run .#install -- --force           # skip the OS version check (other firmware is untested)
 ```
 
-`nix build` alone produces the bundle (`result/` mirrors what lands under `/home/root`); `nix build .#release` produces `ayah-toolbar-0.1.0-aarch64.tar.gz`, the tarball used by the Vellum recipe. The first build downloads the upstream sources listed below (about 120 MB, mostly the quran-png bundle).
+`nix build` alone produces the bundle (`result/` mirrors what lands under `/home/root`); `nix build .#release` produces `midad-0.1.0-aarch64.tar.gz`, the tarball used by the Vellum recipe. The first build downloads the upstream sources listed below (about 120 MB, mostly the quran-png bundle).
 
 ## What is on the tablet
 
 Everything lives under `/home/root`:
 
 ```
-ayah-toolbar/qml/       AyahBar.qml, search.js, hadith-search.js
-ayah-toolbar/data/      index.json, quran-hafs-v22.json, surahs.json, hadith.json, hadith-index.json
-ayah-toolbar/fonts/     Amiri, Noto Naskh Arabic UI, KFGQPC Hafs v22
-ayah-toolbar/fonts.conf, guard.sh, lib/libayahfont.so, licenses/, manifest
-xovi/exthome/qt-resource-rebuilder/ayahBar.qmd, ayah-kbd.rcc
-xovi/services/xochitl.service/ayah-toolbar.conf
+midad/qml/       AyahBar.qml, search.js, hadith-search.js
+midad/data/      index.json, quran-hafs-v22.json, surahs.json, hadith.json, hadith-index.json
+midad/fonts/     Amiri, Noto Naskh Arabic UI, KFGQPC Hafs v22
+midad/fonts.conf, guard.sh, lib/libayahfont.so, licenses/, manifest
+xovi/exthome/qt-resource-rebuilder/midad.qmd, midad-kbd.rcc
+xovi/services/xochitl.service/midad.conf
 ```
 
 `manifest` records the version and the sha256 of every file; the installer and `status` compare against it.
 
 ## How it works
 
-**Keyboard.** xochitl's on-screen keyboard reads its layouts from `:/misc/keyboards/<code>/keyboard_layout.json` inside its Qt resources. `ayah-kbd.rcc` carries an `ar_SA` layout there; qt-resource-rebuilder merges it in at startup, and "Arabic" appears in the stock language list. No xochitl code is patched.
+**Keyboard.** xochitl's on-screen keyboard reads its layouts from `:/misc/keyboards/<code>/keyboard_layout.json` inside its Qt resources. `midad-kbd.rcc` carries an `ar_SA` layout there; qt-resource-rebuilder merges it in at startup, and "Arabic" appears in the stock language list. No xochitl code is patched.
 
-**Search bar.** `ayahBar.qmd` is a qt-resource-rebuilder patch for the note editor's scene view. It inserts a single `Loader` that loads `/home/root/ayah-toolbar/qml/AyahBar.qml`, a floating button and panel. The bar searches with `search.js` and `hadith-search.js` (a trigram index with fuzzy matching) over the JSON files in `data/`, and inserts the chosen text at the cursor, or at the end of the page's text, as its own paragraph.
+**Search bar.** `midad.qmd` is a qt-resource-rebuilder patch for the note editor's scene view. It inserts a single `Loader` that loads `/home/root/midad/qml/AyahBar.qml`, a floating button and panel. The bar searches with `search.js` and `hadith-search.js` (a trigram index with fuzzy matching) over the JSON files in `data/`, and inserts the chosen text at the cursor, or at the end of the page's text, as its own paragraph.
 
-**Fonts.** `ayah-toolbar.conf` is a systemd drop-in that xovi copies into xochitl's service. It points `FONTCONFIG_FILE` at `fonts.conf`, which adds our font directory and makes Amiri the Arabic fallback for the families xochitl uses. That gives every Arabic character a glyph.
+**Fonts.** `midad.conf` is a systemd drop-in that xovi copies into xochitl's service. It points `FONTCONFIG_FILE` at `fonts.conf`, which adds our font directory and makes Amiri the Arabic fallback for the families xochitl uses. That gives every Arabic character a glyph.
 
 **Shim.** xochitl has one font family per paragraph style, so ayat and hadith cannot get different fonts from fontconfig alone. `libayahfont.so` is loaded with `LD_PRELOAD` (after xovi, from the same drop-in) and interposes `QTextCursor::insertText`. The bar puts an invisible tag character at the start of what it inserts: U+2061 for an ayah, U+2062 for a hadith. After xochitl inserts a span, the shim looks for the tag (ayat are also recognised by marks only the KFGQPC encoding uses) and sets that span's font family: `kfgqpc_hafs_uthmanic_script` for ayat, `Amiri` for hadith. Sizes and styles stay as xochitl set them. The shim does not link Qt, so it loads harmlessly into xochitl's helper processes.
 
@@ -84,35 +84,35 @@ Because several of these carry no licence or restrictive terms, do not redistrib
 
 ## Troubleshooting
 
-- **xochitl does not start after an install.** `guard.sh` waits for xochitl's healthy-start line in the journal (`DeviceReporter enabled`). If it does not appear in time, the guard moves every ayah-toolbar file from `xovi/exthome/qt-resource-rebuilder` and `xovi/services/xochitl.service` into `/home/root/ayah-disabled`, kills the hung process and restarts clean. The log is `/tmp/ayah-guard.log` on the tablet. `nix run .#status` lists what was parked; fix the cause and run `nix run .#install` again.
+- **xochitl does not start after an install.** `guard.sh` waits for xochitl's healthy-start line in the journal (`DeviceReporter enabled`). If it does not appear in time, the guard moves every midad file from `xovi/exthome/qt-resource-rebuilder` and `xovi/services/xochitl.service` into `/home/root/midad-disabled`, kills the hung process and restarts clean. The log is `/tmp/midad-guard.log` on the tablet. `nix run .#status` lists what was parked; fix the cause and run `nix run .#install` again.
 - **Back to stock at any time.** On the tablet, `/home/root/xovi/start` restarts xochitl through xovi with whatever is installed; `/home/root/xovi/stock` starts it without xovi; a reboot also returns to stock xochitl. `nix run .#uninstall` removes this addon completely.
 - **"<note> closed unexpectedly" after an install or uninstall.** The restart stops xochitl even when a note is open, and xochitl reports it on the next start. Tap Reopen; the note's files are not touched. Close the note before installing to avoid the message.
 - **Arabic shows as boxes after uninstalling.** The stock firmware has no Arabic font. The text is still in your notes, and installing again brings the fonts back.
 - **The service reboots the tablet after repeated failed starts.** The guard and the uninstaller run `systemctl reset-failed xochitl` before each `xovi/start` for this reason. If you restart by hand a few times in a row, run it yourself first.
 - **"hashtab missing".** Run `/home/root/xovi/rebuild_hashtable` on the tablet (needed after an OS update too).
 - **"cannot reach … over ssh".** The tools use `ssh -o BatchMode=yes`, so the key must work without a password prompt. Check the cable or Wi-Fi address.
-- The installer never touches `/home/root/ayah-backups` or any xochitl document.
+- The installer touches only the files it ships and never your documents.
 
 ## Install through reManager or Vellum
 
-reManager installs from the Vellum package index, so the route is a Vellum recipe: `packaging/vellum/ayah-toolbar/VELBUILD` (see `packaging/vellum/README.md`). It is not published: the recipe has placeholders for the maintainer and the release URL, a licence has not been chosen, and Vellum's rules require that a person submits it. Once it is in the index, reManager and `vellum add ayah-toolbar` will install the same tree.
+reManager installs from the Vellum package index, so the route is a Vellum recipe: `packaging/vellum/midad/VELBUILD` (see `packaging/vellum/README.md`). It is not published: the recipe has placeholders for the maintainer and the release URL, a licence has not been chosen, and Vellum's rules require that a person submits it. Once it is in the index, reManager and `vellum add midad` will install the same tree.
 
 ## Development
 
 Host tooling is bun/TypeScript or shell. `nix develop` gives bun, the aarch64 cross compiler, `patchelf` and openssh; `$RCC` and `$QT_INCLUDE` point at Qt 6.8's `rcc` and headers.
 
-**Dev variant.** `nix run .#install -- --dev` installs `dev/ayahBar.qmd` instead of the shipped QMD, under the same name so only one bar ever loads. It adds a message-broker block, so it needs the `xovi-message-broker` extension. With it, from the tablet's xovi FIFO: `ayahProbe` (state as JSON), `ayahReload` (reload `AyahBar.qml` from disk without restarting xochitl) and `ayahBench`. `dev/rmhook <signal>` sends one over ssh; `dev/shimtest.sh` launches xochitl once with the shim for testing. The shipped QMD has none of this.
+**Dev variant.** `nix run .#install -- --dev` installs `dev/midad.qmd` instead of the shipped QMD, under the same name so only one bar ever loads. It adds a message-broker block, so it needs the `xovi-message-broker` extension. With it, from the tablet's xovi FIFO: `ayahProbe` (state as JSON), `ayahReload` (reload `AyahBar.qml` from disk without restarting xochitl) and `ayahBench`. `dev/rmhook <signal>` sends one over ssh; `dev/shimtest.sh` launches xochitl once with the shim for testing. The shipped QMD has none of this.
 
 **Checks.**
 
 ```sh
 nix flake check                 # shellcheck on the busybox scripts that run on the tablet
 test/install/run.sh             # installer, uninstaller and status against a fake tablet
-AYAH_TEST_BUSYBOX=1 test/install/run.sh   # same, with a busybox-only PATH on the "tablet" side
+MIDAD_TEST_BUSYBOX=1 test/install/run.sh   # same, with a busybox-only PATH on the "tablet" side
 bun test                        # search evals
 ```
 
-`test/install/run.sh` runs the tools against a temp directory with stub `systemctl`, `journalctl` and `pidof`. The `AYAH_SSH`, `AYAH_HOME`, `AYAH_TMP`, `AYAH_PROC`, `AYAH_STAGE`, `AYAH_POLL`, `AYAH_GUARD_TIMEOUT`, `AYAH_DTMODEL` and `AYAH_OSREL` variables exist only for it; leave them unset on real use. It cannot prove xochitl itself behaves; that needs a tablet.
+`test/install/run.sh` runs the tools against a temp directory with stub `systemctl`, `journalctl` and `pidof`. The `MIDAD_SSH`, `MIDAD_HOME`, `MIDAD_TMP`, `MIDAD_PROC`, `MIDAD_STAGE`, `MIDAD_POLL`, `MIDAD_GUARD_TIMEOUT`, `MIDAD_DTMODEL` and `MIDAD_OSREL` variables exist only for it; leave them unset on real use. It cannot prove xochitl itself behaves; that needs a tablet.
 
 **Build outputs.** `.#data` (search cores and JSON, built by `src/*/build.ts` and checked against known md5s), `.#ayahfont` (the shim, with structural checks that fail the build: AArch64, one exported symbol, NEEDED limited to libgcc_s and libc, no RPATH into the store, no GLOB_DAT/ABS64 relocation against Qt, glibc symbols up to 2.39), `.#keyboard`, `.#bundle`, `.#bundle-dev`, `.#release`.
 
