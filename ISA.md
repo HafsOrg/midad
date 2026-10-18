@@ -1,6 +1,6 @@
 ---
 - C35: `nix build` → bundle icd6zwg1…; data and search cores md5 = tablet (asserted in `.#data`); shim checks pass (one export, NEEDED libgcc_s+libc, no Qt GLOB_DAT, GLIBC ≤ 2.34), raw link = hand build e5d9b422.
-- C38: README.md (dae6ab7). C39: packaging/vellum/ayah-toolbar/VELBUILD (67046fb), Vellum `scripts/validate-velbuild.sh` PASS. C40: device/qmd/ayahBar.qmd is loader-only (8822f9b); the broker QMD is dev/ayahBar.qmd.
+- C38: README.md (dae6ab7). C39: packaging/vellum/ayah-toolbar/VELBUILD (67046fb), Vellum `scripts/validate-velbuild.sh` PASS; abuild 3.16 (vbuild-builder image) built ayah-toolbar-0.1.0-r0.apk, 37 files, sha512 matching `.#release`. C40: device/qmd/ayahBar.qmd is loader-only (8822f9b); the broker QMD is dev/ayahBar.qmd.
 - Host-side: `nix flake check` passes; `test/install/run.sh` 44/0 with GNU tools and with busybox.
 task: "Ayah toolbar with Arabic keyboard and fuzzy search on reMarkable"
 slug: 20261018-031836_rm-ayah-toolbar
