@@ -1,0 +1,98 @@
+{
+  "inherits": "en_US",
+  "alphabetic": [
+    [
+      { "default": ["ض"], "shifted": ["ض"] },
+      { "default": ["ص"], "shifted": ["ص"] },
+      { "default": ["ث"], "shifted": ["ث"] },
+      { "default": ["ق"], "shifted": ["ق"] },
+      { "default": ["ف"], "shifted": ["ف"] },
+      { "default": ["غ"], "shifted": ["غ"] },
+      { "default": ["ع"], "shifted": ["ع"] },
+      { "default": ["ه", "ة"], "shifted": ["ه", "ة"] },
+      { "default": ["خ"], "shifted": ["خ"] },
+      { "default": ["ح"], "shifted": ["ح"] },
+      { "default": ["ج"], "shifted": ["ج"] }
+    ],
+    [
+      { "default": ["ش"], "shifted": ["ش"] },
+      { "default": ["س"], "shifted": ["س"] },
+      { "default": ["ي", "ئ", "ى"], "shifted": ["ي", "ئ", "ى"] },
+      { "default": ["ب"], "shifted": ["ب"] },
+      { "default": ["ل", "لا", "لأ", "لإ", "لآ"], "shifted": ["ل", "لا", "لأ", "لإ", "لآ"] },
+      { "default": ["ا", "أ", "إ", "آ", "ٱ"], "shifted": ["ا", "أ", "إ", "آ", "ٱ"] },
+      { "default": ["ت", "ة"], "shifted": ["ت", "ة"] },
+      { "default": ["ن"], "shifted": ["ن"] },
+      { "default": ["م"], "shifted": ["م"] },
+      { "default": ["ك"], "shifted": ["ك"] },
+      { "default": ["ط"], "shifted": ["ط"] }
+    ],
+    [
+      { "default": ["ذ"], "shifted": ["ذ"] },
+      { "default": ["ء", "أ", "إ", "ئ", "ؤ"], "shifted": ["ء", "أ", "إ", "ئ", "ؤ"] },
+      { "default": ["ؤ"], "shifted": ["ؤ"] },
+      { "default": ["ر"], "shifted": ["ر"] },
+      { "default": ["ى", "ئ"], "shifted": ["ى", "ئ"] },
+      { "default": ["ة"], "shifted": ["ة"] },
+      { "default": ["و", "ؤ"], "shifted": ["و", "ؤ"] },
+      { "default": ["ز"], "shifted": ["ز"] },
+      { "default": ["ظ"], "shifted": ["ظ"] },
+      { "default": ["د"], "shifted": ["د"] },
+      { "special": "backspace" }
+    ]
+  ],
+  "symbolic": [
+    [
+      { "default": ["١", "1"], "shifted": ["1"] },
+      { "default": ["٢", "2"], "shifted": ["2"] },
+      { "default": ["٣", "3"], "shifted": ["3"] },
+      { "default": ["٤", "4"], "shifted": ["4"] },
+      { "default": ["٥", "5"], "shifted": ["5"] },
+      { "default": ["٦", "6"], "shifted": ["6"] },
+      { "default": ["٧", "7"], "shifted": ["7"] },
+      { "default": ["٨", "8"], "shifted": ["8"] },
+      { "default": ["٩", "9"], "shifted": ["9"] },
+      { "default": ["٠", "0"], "shifted": ["0"] }
+    ],
+    [
+      { "default": ["َ"], "shifted": ["َ"] },
+      { "default": ["ً"], "shifted": ["ً"] },
+      { "default": ["ُ"], "shifted": ["ُ"] },
+      { "default": ["ٌ"], "shifted": ["ٌ"] },
+      { "default": ["ِ"], "shifted": ["ِ"] },
+      { "default": ["ٍ"], "shifted": ["ٍ"] },
+      { "default": ["ّ"], "shifted": ["ّ"] },
+      { "default": ["ْ"], "shifted": ["ْ"] },
+      { "default": ["ٰ"], "shifted": ["ٰ"] },
+      { "default": ["ـ"], "shifted": ["ـ"] }
+    ],
+    [
+      { "special": "shift" },
+      { "default": ["،"], "shifted": [","] },
+      { "default": ["؛"], "shifted": [";"] },
+      { "default": ["؟"], "shifted": ["?"] },
+      { "default": ["!"], "shifted": ["¡"] },
+      { "default": [":"], "shifted": ["|"] },
+      { "default": ["("], "shifted": ["﴿"] },
+      { "default": [")"], "shifted": ["﴾"] },
+      { "default": ["\""], "shifted": ["«", "»"] },
+      { "special": "backspace" }
+    ]
+  ],
+  "spacebarRow": [
+    { "special": "language" },
+    { "special": "alt" },
+    {
+      "default": ["،", ",", "؛", ":", "/"],
+      "email": ["@"],
+      "shifted": ["،", ",", "؛", ":", "/"]
+    },
+    { "special": "space" },
+    {
+      "default": [".", "؟", "!", "-", "(", ")"],
+      "email": ["."],
+      "shifted": [".", "؟", "!", "-", "(", ")"]
+    },
+    { "special": "enter" }
+  ]
+}

@@ -43,6 +43,19 @@ rasterises to a transparent PNG. Note single-ayah images use `basmalah=0`.
 ## Search
 
 ```sh
-bun run build:search    # dist/search.js + dist/index.json
+bun run build:search    # dist/search/search.js + dist/search/index.json
 bun test
 ```
+
+Outputs in `dist/search/`: `search.js` (the core, one classic script, ES2017, no host
+APIs; loads in QML via `.pragma library`), `index.json` (prebuilt index, ~2.1 MiB),
+`text.json` (Uthmani display text per ayah, 1.3 MiB, not part of the index budget).
+Usage: `var s = createSearcher(JSON.parse(indexText)); s.search(query, 10)` ->
+`[{id, key:"2:255", surah, ayah, to, score, dist, kind:"text"|"ref"}]`.
+
+Corpus: quran-png bundle `index/words.json` (KFGQPC Hafs, 6236 ayat, 77,432 words),
+keyed surah:ayah exactly as quran-png numbers them (its `search` field = imla'i
+skeleton, `rasm_uthmani` = display/Uthmani skeleton). Both forms are indexed.
+Known limit: a query spanning two ayat (e.g. 55:1-2 typed as one phrase) is not matched as a range.
+
+`bun run src/search/bench.ts` prints host latency per query class.

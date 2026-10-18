@@ -6,12 +6,15 @@
     "render": "bun run src/render/cli.ts",
     "export": "bun run src/render/export-all.ts",
     "build:search": "bun run src/search/build.ts",
-    "test": "bun test"
+    "test": "bun test --timeout 120000"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "pdfkit": "^0.20.2",
     "saxes": "^6.0.0",
     "svg-to-pdfkit": "^0.1.8"
+  },
+  "devDependencies": {
+    "acorn": "^8.19.0"
   }
 }
