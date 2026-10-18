@@ -205,8 +205,10 @@ Item {
         const r = results[selected];
         const isAyah = mode === "ayah";
         const s = r.surah, a = r.ayah, b = isAyah ? r.ayah + span - 1 : 0;
-        const text = isAyah ? compose(s, a, b)
-                            : r.item[4] + " " + hadithCitation(r.item);
+        // Invisible category tags (U+2061 ayah, U+2062 hadith) let the ayahfont shim give each
+        // paragraph its category's font at whatever size the user picks.
+        const text = isAyah ? "⁡" + compose(s, a, b)
+                            : "⁢" + r.item[4] + " " + hadithCitation(r.item);
         closePanel();
 
         const c = sceneView.controller;
