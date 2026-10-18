@@ -8,7 +8,7 @@ const VENDOR = new URL('../../vendor/hadith/', import.meta.url)
 export type Item = { book: 0 | 1; number: string; kitab: string; bab: string; matn: string }
 export type LoadReport = {
   rows: [number, number]
-  dropped: { book: number; number: string; why: string }[]
+  dropped: { book: number; number: string; why: string; matn: string }[]
   muslimJoin: { exact: number; viaPrefix: number }
   gapsFilled: number
   blanked: number
@@ -62,6 +62,9 @@ export function cleanMatn(s: string): string {
   s = s.replace(/^[\s.,\u060C\u061B:\-\u2013]+/, '').replace(/[\s,\u060C\u061B:\-\u2013]+$/, '')
   return s.trim()
 }
+
+/** kitab/bab: the CSVs hold a literal "nan" where pandas had no value. */
+const cleanField = (s: string) => { const c = cleanMatn(s); return c === 'nan' ? '' : c }
 
 const norm = (s: string) => s.replace(/[^\u0621-\u064A]/g, '').replace(/[\u0623\u0625\u0622\u0671]/g, '\u0627')
 
@@ -130,7 +133,19 @@ function reason(matn: string): string {
   if (!letters) return 'empty matn (chain-only cross-reference)'
   const words = foldWords(matn)
   if (words.every((w) => STUB_WORDS.has(w))) return 'stub matn (cross-reference only)'
+  if (letters.length < SAME_CHAIN_MAX_LETTERS && sameChainRemark(words)) return 'same-chain remark (no matn of its own)'
   return ''
+}
+
+const SAME_CHAIN_MAX_LETTERS = 160
+const SAME_AS = new Set(['بمثله', 'بنحوه', 'مثله', 'نحوه'])
+/** "[narrator of 0-3 words] بهذا الإسناد ..." or "[narrator] مثله/نحوه ...": a remark that the chain differs, not a hadith. */
+function sameChainRemark(words: string[]): boolean {
+  for (let k = 0; k <= 3 && k < words.length; k++) {
+    if (words[k] === 'بهذا' && words[k + 1] === 'الاسناد') return true
+    if (SAME_AS.has(words[k])) return true
+  }
+  return false
 }
 
 export function loadHadith(): { items: Item[]; report: LoadReport } {
@@ -142,8 +157,8 @@ export function loadHadith(): { items: Item[]; report: LoadReport } {
     const matn = cleanMatn(r.Arabic_Matn)
     const number = String(Math.floor(parseFloat(r.Hadith_number)))
     const why = reason(matn)
-    if (why) { dropped.push({ book: 0, number, why }); continue }
-    items.push({ book: 0, number, kitab: cleanMatn(r.Chapter_Arabic), bab: cleanMatn(r.Section_Arabic), matn })
+    if (why) { dropped.push({ book: 0, number, why, matn }); continue }
+    items.push({ book: 0, number, kitab: cleanField(r.Chapter_Arabic), bab: cleanField(r.Section_Arabic), matn })
   }
 
    // Muslim: LK's Hadith_number is not fawaz's running sequence (and fawaz's own order is not
@@ -195,9 +210,9 @@ export function loadHadith(): { items: Item[]; report: LoadReport } {
     const matn = cleanMatn(r.Arabic_Matn)
     const number = rowNums[i] !== null ? muslimNumber(rowNums[i]!) : ''
     const why = reason(matn)
-    if (why) { dropped.push({ book: 1, number, why }); return }
+    if (why) { dropped.push({ book: 1, number, why, matn }); return }
     if (!number) unnumbered++
-    items.push({ book: 1, number, kitab: cleanMatn(r.Chapter_Arabic), bab: cleanMatn(r.Section_Arabic), matn })
+    items.push({ book: 1, number, kitab: cleanField(r.Chapter_Arabic), bab: cleanField(r.Section_Arabic), matn })
   })
 
   return { items, report: { rows: [bk.length, ms.length], dropped, muslimJoin: { exact, viaPrefix }, gapsFilled, blanked, unnumbered } }
