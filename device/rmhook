@@ -5,7 +5,7 @@ set -euo pipefail
 host="${RM_HOST:-root@10.11.99.1}"
 sig="${1:?usage: rmhook ayahProbe | ayahInsert <path>|<x>|<y>}"
 val="${2:-}"
-case "$sig" in ayahProbe|ayahPasteText) ;; *) echo "unknown signal: $sig" >&2; exit 2 ;; esac
+case "$sig" in ayahProbe|ayahReload|ayahBench) ;; *) echo "unknown signal: $sig" >&2; exit 2 ;; esac
 [[ "$val" =~ ^[0-9:|tsp-]*$ ]] || { echo "bad value" >&2; exit 2; }
 ssh -o BatchMode=yes -o ConnectTimeout=8 "$host" "
   cat /run/xovi-mb-out > /tmp/rmhook.\$\$ & r=\$!
