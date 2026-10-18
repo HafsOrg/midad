@@ -18,10 +18,16 @@ Item {
     readonly property string quranFont: "kfgqpc_hafs_uthmanic_script"
     readonly property string uiFont: "Noto Naskh Arabic UI"
 
+    // "ayah" or "hadith": which button opened the panel.
+    property string mode: "ayah"
+
     property var searcher: null
     property var quran: null
     property var surahs: null
-    readonly property bool ready: !!searcher && !!quran && !!surahs
+    property var hadithSearcher: null
+    property var hadith: null
+    readonly property bool ready: mode === "ayah" ? (!!searcher && !!quran && !!surahs)
+                                                 : (!!hadithSearcher && !!hadith)
     property string loadError: ""
 
     property var results: []
@@ -56,13 +62,32 @@ Item {
     function loadData() {
         if (ready || loadError)
             return;
-        readJson("index.json", (j) => { searcher = Search.createSearcher(j); runSearch(); });
-        readJson("quran-hafs-v22.json", (j) => { quran = j.surahs; runSearch(); });
-        readJson("surahs.json", (j) => { surahs = j; runSearch(); });
+        if (mode === "ayah") {
+            readJson("index.json", (j) => { searcher = Search.createSearcher(j); runSearch(); });
+            readJson("quran-hafs-v22.json", (j) => { quran = j.surahs; runSearch(); });
+            readJson("surahs.json", (j) => { surahs = j; runSearch(); });
+        } else {
+            readJson("hadith-index.json", (j) => { hadithSearcher = makeHadithSearcher(j); runSearch(); });
+            readJson("hadith.json", (j) => { hadith = j; runSearch(); });
+        }
+    }
+
+    // The hadith data worker decides the exact call; kept in one place.
+    function makeHadithSearcher(index) {
+        return Search.createSearcher(index);
     }
 
     function ayahText(s, a) {
         return quran[s - 1][a - 1];
+    }
+
+    // Hadith item: [bookIndex, number, kitab, bab, matn].
+    function hadithBook(item) {
+        return hadith.books[item[0]];
+    }
+
+    function hadithSource(item) {
+        return hadithBook(item).id === "bukhari" ? "البخاري" : "مسلم";
     }
 
     function runSearch() {
@@ -76,16 +101,29 @@ Item {
             return;
         }
         const t0 = Date.now();
-        const found = searcher.search(q, 4);
-        lastSearchMs = Date.now() - t0;
-        results = found.map((r) => ({
-            surah: r.surah,
-            ayah: r.ayah,
-            to: r.to || r.ayah,
-            ref: "سورة " + surahs[r.surah - 1].ar + " · " + arabicDigits(r.ayah)
-                 + ((r.to && r.to > r.ayah) ? "–" + arabicDigits(r.to) : ""),
-            text: ayahText(r.surah, r.ayah)
-        }));
+        if (mode === "ayah") {
+            const found = searcher.search(q, 4);
+            lastSearchMs = Date.now() - t0;
+            results = found.map((r) => ({
+                surah: r.surah,
+                ayah: r.ayah,
+                to: r.to || r.ayah,
+                ref: "سورة " + surahs[r.surah - 1].ar + " · " + arabicDigits(r.ayah)
+                     + ((r.to && r.to > r.ayah) ? "–" + arabicDigits(r.to) : ""),
+                text: ayahText(r.surah, r.ayah)
+            }));
+        } else {
+            const found = hadithSearcher.search(q, 4);
+            lastSearchMs = Date.now() - t0;
+            results = found.map((r) => {
+                const it = hadith.items[r.id];
+                return {
+                    item: it,
+                    ref: hadithBook(it).ar + " · " + arabicDigits(it[1]) + " · " + it[2],
+                    text: it[4]
+                };
+            });
+        }
         if (results.length > 0)
             choose(0);
     }
@@ -93,11 +131,11 @@ Item {
     function choose(i) {
         selected = i;
         const r = results[i];
-        span = r.to - r.ayah + 1;
+        span = mode === "ayah" ? r.to - r.ayah + 1 : 1;
     }
 
     function maxSpan() {
-        if (selected < 0)
+        if (selected < 0 || mode !== "ayah")
             return 1;
         const r = results[selected];
         return surahs[r.surah - 1].n - r.ayah + 1;
@@ -110,10 +148,16 @@ Item {
         return parts.join(" ");
     }
 
-    function openPanel() {
+    function openPanel(newMode) {
         const c = sceneView.controller;
         openedInTextMode = sceneView.textMode;
         openedCursorIndex = openedInTextMode ? c.textCursorIndex : -1;
+        if (mode !== newMode) {
+            mode = newMode;
+            results = [];
+            selected = -1;
+            query.text = "";
+        }
         panel.visible = true;
         loadData();
         query.forceActiveFocus();
@@ -130,8 +174,10 @@ Item {
         if (selected < 0)
             return;
         const r = results[selected];
-        const s = r.surah, a = r.ayah, b = r.ayah + span - 1;
-        const text = compose(s, a, b);
+        const isAyah = mode === "ayah";
+        const s = r.surah, a = r.ayah, b = isAyah ? r.ayah + span - 1 : 0;
+        const text = isAyah ? compose(s, a, b)
+                            : r.item[4] + " (رواه " + hadithSource(r.item) + " " + arabicDigits(r.item[1]) + ")";
         closePanel();
 
         const c = sceneView.controller;
@@ -147,13 +193,17 @@ Item {
         Clipboard.setTextFromString(pre + text + post);
         c.pasteText(Clipboard.text, SceneController.KeepStyle);
 
-        // Style the new paragraph itself. A fresh paste is always a plain paragraph, and
-        // textParagraphStyle lags right after a paste, so set Subheading without reading it.
+        // Ayat get the Subheading size. A fresh paste is always a plain paragraph, and
+        // textParagraphStyle lags right after a paste, so set it without reading it.
+        // Hadith stay at the plain Paragraph size.
         const start = at + pre.length;
-        c.selectTextRange(start + 1, start + 1);
-        c.cycleParagraphStyle(ParagraphStyle.Type.Subheading);
+        if (isAyah) {
+            c.selectTextRange(start + 1, start + 1);
+            c.cycleParagraphStyle(ParagraphStyle.Type.Subheading);
+        }
         c.selectTextRange(start + text.length, start + text.length);
-        lastInsert = { key: s + ":" + a + "-" + b, at: at, length: len };
+        lastInsert = { key: isAyah ? s + ":" + a + "-" + b : hadithSource(r.item) + " " + r.item[1],
+                       at: at, length: len };
     }
 
     // On-device search timing over a fixed query mix (dev: ayahBench).
@@ -226,7 +276,40 @@ Item {
             drag.minimumY: 0
             drag.maximumX: bar.width - fab.width
             drag.maximumY: bar.height - fab.height
-            onClicked: bar.openPanel()
+            onClicked: bar.openPanel("ayah")
+        }
+    }
+
+    // Hadith button, below the ayah one; drags on its own.
+    Rectangle {
+        id: hadithFab
+        width: 112
+        height: 112
+        radius: 56
+        color: "white"
+        border.color: "black"
+        border.width: 3
+        x: bar.width - width - 36
+        y: Math.round(bar.height * 0.42) + 136
+        visible: !panel.visible
+
+        Text {
+            anchors.centerIn: parent
+            text: "حديث"
+            font.family: bar.uiFont
+            font.pixelSize: 34
+            color: "black"
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            preventStealing: true
+            drag.target: hadithFab
+            drag.minimumX: 0
+            drag.minimumY: 0
+            drag.maximumX: bar.width - hadithFab.width
+            drag.maximumY: bar.height - hadithFab.height
+            onClicked: bar.openPanel("hadith")
         }
     }
 
@@ -258,7 +341,7 @@ Item {
             Text {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                text: "إدراج آية"
+                text: bar.mode === "ayah" ? "إدراج آية" : "إدراج حديث"
                 font.family: bar.uiFont
                 font.pixelSize: 40
                 font.bold: true
@@ -309,7 +392,8 @@ Item {
                 verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignRight
                 visible: query.text.length === 0
-                text: "اكتب جزءًا من الآية، أو ٢:٢٥٥"
+                text: bar.mode === "ayah" ? "اكتب جزءًا من الآية، أو ٢:٢٥٥"
+                                          : "اكتب جزءًا من الحديث، أو البخاري ١"
                 font.family: bar.uiFont
                 font.pixelSize: 38
                 color: "#777777"
@@ -427,6 +511,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 20
                 layoutDirection: Qt.RightToLeft
+                visible: bar.mode === "ayah"
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter

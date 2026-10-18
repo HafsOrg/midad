@@ -3,9 +3,9 @@ task: "Ayah toolbar with Arabic keyboard and fuzzy search on reMarkable"
 slug: 20261018-031836_rm-ayah-toolbar
 project: rm-ayah-toolbar
 phase: climbing
-progress: 22/25
+progress: 22/30
 started: 2026-10-18T03:18:36+03:00
-updated: 2026-10-18T04:50:00+03:00
+updated: 2026-10-18T05:05:00+03:00
 principal_stated_goal: "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search."
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 4
@@ -26,7 +26,7 @@ I'm writing in a note, tap a small floating ayah button, type a few words the wa
 
 ## Out of Scope
 
-- Hadith insertion (the qirtaas-style second half) — a later run reuses the toolbar.
+- Hadith beyond Sahih al-Bukhari and Sahih Muslim (Sunan, Riyad as-Salihin, gradings) — the principal picked the Sahihayn for now.
 - Translations, tafsir, or audio.
 - Packaging for Vellum or public release; other devices or firmware versions.
 - Changing how quran-png typesets; we take its output as is.
@@ -91,6 +91,15 @@ Why: one tap from any open note, without leaving it.
 - [x] C20: Tapping it opens a panel with the Arabic input and ranked results showing the ayah text.
 - [ ] C21: Anti: stock tools and the principal's floating toolbar still work with ours installed.
 
+### F6 · Hadith bar
+Why: the same one-tap insert for hadith, so notes can quote the Sahihayn as easily as ayat.
+
+- [ ] C26: A حديث button on note pages opens the panel in hadith mode, searching Bukhari and Muslim matn; each result shows book · number · kitab.
+- [ ] C27: Inserting adds the matn with full tashkeel plus "(رواه البخاري N)" or "(رواه مسلم N)" as its own Paragraph-size paragraph.
+- [ ] C28: Reference queries ("البخاري ١", "bukhari 1", "مسلم ٨", "muslim 2564") resolve at rank 1.
+- [ ] C29: A 3–6-word matn snippet without tashkeel finds its hadith in the top 5 for ≥ 95% of a seeded sample; with 1–2 typos, ≥ 90%.
+- [ ] C30: A hadith search on the tablet returns in ≤ 1.5 s.
+
 ### F0 · Cross-cutting
 Why: this is the principal's daily device with real notes on it.
 
@@ -151,6 +160,7 @@ Why: this is the principal's daily device with real notes on it.
 - 2026-10-18 04:36: two bar bugs fixed by test — the 112:1-4 insert came out plain because `textParagraphStyle` lags right after a paste (now set unconditionally on the fresh paragraph); dragging the button panned the page (`preventStealing`).
 - 2026-10-18 04:45: principal: "when i try to edit the font to change the size etc.. the last two will change the font, i want to maintain the font while having the 4 size options." and "we dont have title and subheadings for quran, they're all different sizes for the text anyway." Subheading2/Paragraph use "reMarkable Sans", which is also the UI and keyboard font, and Qt's fallback query carries only family, slant and script, so no fontconfig rule can split them. fonts.conf now gives "reMarkable Sans" the QPC font as its Arabic fallback too: all four sizes keep QPC, and UI/keyboard Arabic is QPC (titles verified to fit).
 - 2026-10-18 04:48: QPC draws isolated ي without dots, so the ي and ى keys looked identical. The standalone ى key is now لا (with لأ لإ لآ); ى moved to a long-press on ي. Search already folds ى into ي.
+- 2026-10-18 05:00: principal: "let's do another similar bar for hadith, research good hadith datasets or refrences we can use". Research (forked Research skill) compared fawazahmed0/hadith-api, AhmedBaset/hadith-json, Open-Hadith-Data, LK-Hadith-Corpus, Sanadset 650K, HadeethEnc, a sunnah.com scrape, plus the sunnah.com and dorar APIs (online only). Principal chose "Bukhari + Muslim matn": LK's isnad/matn split with Fath al-Bari numbers for Bukhari, Abd al-Baqi numbers for Muslim joined from fawazahmed0, full tashkeel, ~15k hadith. Data and index go to a Worker; the bar gets a hadith mode with its own button. Note: the research fork measured data with throwaway Python scripts in the scratchpad, against the TypeScript-only rule; nothing Python ships.
 
 ## Remaining Work
 
