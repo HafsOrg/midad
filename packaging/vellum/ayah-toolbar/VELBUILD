@@ -1,0 +1,74 @@
+# PLACEHOLDERS to fill in by a person before submitting to Vellum:
+#   maintainer   name and email of the person who submits and maintains this package
+#   upstream_author, url, source   the GitHub account/repo that will host the releases (OWNER)
+#   license      the repo has no licence yet; see the NOTICES file in the package for the
+#                third-party terms. Replace "custom:PLACEHOLDER" with the real SPDX id once chosen.
+# sha512sums is for the release tarball built by "nix build .#release" at this commit;
+# re-run it (and update the checksum) whenever anything under device/ or src/ changes.
+maintainer="PLACEHOLDER Your Name <you@example.invalid>"
+pkgname=ayah-toolbar
+pkgver=0.1.0
+pkgrel=0
+upstream_author="OWNER"
+category="ui"
+pkgdesc="Arabic keyboard, ayah and hadith search bar and Quran fonts for the Paper Pro"
+url="https://github.com/OWNER/rm-ayah-toolbar"
+arch="aarch64"
+license="custom:PLACEHOLDER"
+depends="xovi qt-resource-rebuilder remarkable-os>=3.26 remarkable-os<3.27 !rm1 !rm2 !rmppm !rmppure"
+source="https://github.com/OWNER/rm-ayah-toolbar/releases/download/v$pkgver/ayah-toolbar-$pkgver-aarch64.tar.gz"
+options="!check !fhs"
+
+package() {
+	# The release tarball is rooted at /home/root (ayah-toolbar/ and xovi/).
+	cd "$srcdir"
+	find ayah-toolbar xovi -type f | while IFS= read -r f; do
+		case "$f" in
+		ayah-toolbar/guard.sh) mode=755 ;;
+		*) mode=644 ;;
+		esac
+		install -Dm$mode "$f" "$pkgdir"/home/root/"$f"
+	done
+
+	# Vellum's licence directory gets a copy; the tree keeps its own so the manifest stays whole.
+	for f in ayah-toolbar/licenses/*; do
+		install -Dm644 "$f" "$pkgdir"/home/root/.vellum/licenses/$pkgname/"${f##*/}"
+	done
+	cat > "$pkgdir"/home/root/.vellum/licenses/$pkgname/SOURCES <<-SOURCES
+		https://github.com/OWNER/rm-ayah-toolbar
+		https://github.com/quran-ws/quran-png/releases/tag/artwork-v1.0.0
+		https://github.com/nuqayah/qpc-fonts/tree/8a4f39d563ea69c994416a1692827e38156c548d
+		https://github.com/ShathaTm/LK-Hadith-Corpus/tree/c45fa64aa40bf1d4a34b9b35359640a583b02881
+		https://github.com/fawazahmed0/hadith-api/tree/df57907be35291c91ad6a6691180e22ca9920784
+		https://github.com/aliftype/amiri/tree/1.003
+		https://github.com/notofonts/arabic
+	SOURCES
+}
+
+postinstall() {
+	cat <<'EOF2'
+======================================================
+  ayah-toolbar is installed but not loaded yet.
+  Restart xochitl through xovi:  /home/root/xovi/start
+  Safer, with automatic rollback if xochitl does not
+  start:  sh /home/root/ayah-toolbar/guard.sh
+======================================================
+EOF2
+}
+
+postupgrade() {
+	postinstall
+}
+
+predeinstall() {
+	# avoid a device reboot if xochitl has been restarted 4 or more times in the past 10 minutes
+	systemctl reset-failed xochitl
+}
+
+postdeinstall() {
+	echo "Run /home/root/xovi/start to restart xochitl without ayah-toolbar."
+}
+
+sha512sums="
+1ca9a0639fcb824ccd4c525359dc193805047445ef2c928d71ebf4caccff159f0ca159f745e6163b0cb657e53d0e25d083a0fdbf8e51081c34d768cb36f894d4  ayah-toolbar-$pkgver-aarch64.tar.gz
+"
