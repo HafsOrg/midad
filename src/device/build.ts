@@ -1,4 +1,4 @@
-// Assemble the tablet tree in dist/device/ayah-toolbar/ (copied to /home/root/ayah-toolbar/):
+// Assemble the tablet tree in dist/device/midad/ (copied to /home/root/midad/):
 //   qml/AyahBar.qml, qml/search.js            the bar and the search core
 //   data/index.json                           search index
 //   data/quran-hafs-v22.json                  ayah text in the KFGQPC v22 encoding
@@ -8,7 +8,7 @@ import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 const root = new URL('../../', import.meta.url)
 const at = (p: string) => new URL(p, root)
-const OUT = at('dist/device/ayah-toolbar/')
+const OUT = at('dist/device/midad/')
 const BUNDLE = at('vendor/quran-png/.data/quran-svg-hafs-kfgqpc/index/')
 
 for (const d of ['qml', 'data', 'fonts']) mkdirSync(new URL(d, OUT), { recursive: true })
@@ -37,4 +37,4 @@ cpSync(at('device/fonts/'), new URL('fonts/', OUT), { recursive: true })
 cpSync(at('device/fonts.conf'), new URL('fonts.conf', OUT))
 cpSync(at('device/guard.sh'), new URL('guard.sh', OUT))
 
-console.log(`built dist/device/ayah-toolbar/ (${rows.length} ayat, ${meta.length} surahs)`)
+console.log(`built dist/device/midad/ (${rows.length} ayat, ${meta.length} surahs)`)

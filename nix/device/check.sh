@@ -1,27 +1,27 @@
 #!/bin/sh
 # Compares the tablet with a bundle manifest (busybox sh, read-only). The host sends the
-# manifest in $AYAH_MF ahead of this script. Prints one line per fact:
+# manifest in $MIDAD_MF ahead of this script. Prints one line per fact:
 #   BUNDLE <version> <variant>        what the manifest describes
 #   INSTALLED <version> <variant>     what the tablet's own manifest says, or "none"
 #   OK|DIFF|MISSING <path>            every manifest file, relative to /home/root
 #   STALE <path>                      listed by the installed manifest, absent from the new one
 #   MANIFEST same|differs|missing
-#   PARKED <name>                     files the guard moved to ayah-disabled
+#   PARKED <name>                     files the guard moved to midad-disabled
 #   XOCHITL none | pid=<n> shim=mapped|absent
 # shellcheck disable=SC2154
-H=${AYAH_HOME:-/home/root}
-P=${AYAH_PROC:-/proc}
-T=${AYAH_TMP:-/tmp}/ayah-check.$$
+H=${MIDAD_HOME:-/home/root}
+P=${MIDAD_PROC:-/proc}
+T=${MIDAD_TMP:-/tmp}/midad-check.$$
 mkdir -p "$T"
-trap 'rm -rf "$T" "$AYAH_MF"' EXIT
+trap 'rm -rf "$T" "$MIDAD_MF"' EXIT
 
-inst=$H/ayah-toolbar/manifest
-grep -v '^#' "$AYAH_MF" > "$T/new"
-echo "BUNDLE $(sed -n 's/^# ayah-toolbar //p' "$AYAH_MF" | head -n 1) $(sed -n 's/^# variant: //p' "$AYAH_MF" | head -n 1)"
+inst=$H/midad/manifest
+grep -v '^#' "$MIDAD_MF" > "$T/new"
+echo "BUNDLE $(sed -n 's/^# midad //p' "$MIDAD_MF" | head -n 1) $(sed -n 's/^# variant: //p' "$MIDAD_MF" | head -n 1)"
 
 if [ -f "$inst" ]; then
-  echo "INSTALLED $(sed -n 's/^# ayah-toolbar //p' "$inst" | head -n 1) $(sed -n 's/^# variant: //p' "$inst" | head -n 1)"
-  if cmp -s "$AYAH_MF" "$inst"; then echo "MANIFEST same"; else echo "MANIFEST differs"; fi
+  echo "INSTALLED $(sed -n 's/^# midad //p' "$inst" | head -n 1) $(sed -n 's/^# variant: //p' "$inst" | head -n 1)"
+  if cmp -s "$MIDAD_MF" "$inst"; then echo "MANIFEST same"; else echo "MANIFEST differs"; fi
 else
   echo "INSTALLED none"
   echo "MANIFEST missing"
@@ -42,8 +42,8 @@ if [ -f "$inst" ]; then
   awk 'NR==FNR { keep[$2] = 1; next } !($2 in keep) { print "STALE " $2 }' "$T/new" "$T/old"
 fi
 
-if [ -d "$H/ayah-disabled" ]; then
-  for f in "$H"/ayah-disabled/*; do
+if [ -d "$H/midad-disabled" ]; then
+  for f in "$H"/midad-disabled/*; do
     [ -e "$f" ] && echo "PARKED $(basename "$f")"
   done
 fi

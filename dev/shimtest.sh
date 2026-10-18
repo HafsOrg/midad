@@ -7,13 +7,13 @@ MODE=${1:-control}
 FONTS=${2:-auto}
 LOG=/tmp/xochitl-shimtest-$MODE-${2:-auto}.log
 PRE=/home/root/xovi/xovi.so
-SO=${3:-/home/root/ayah-toolbar/lib/libayahfont.so}
-FC=/home/root/ayah-toolbar/fonts.conf
+SO=${3:-/home/root/midad/lib/libayahfont.so}
+FC=/home/root/midad/fonts.conf
 if [ "$MODE" = shim ]; then
   PRE="$PRE $SO"
-  FC=/home/root/ayah-toolbar/fonts-shim-test.conf
+  FC=/home/root/midad/fonts-shim-test.conf
 fi
-if [ "$FONTS" = normal ]; then FC=/home/root/ayah-toolbar/fonts.conf; elif [ "$FONTS" = shimfonts ]; then FC=/home/root/ayah-toolbar/fonts-shim-test.conf
+if [ "$FONTS" = normal ]; then FC=/home/root/midad/fonts.conf; elif [ "$FONTS" = shimfonts ]; then FC=/home/root/midad/fonts-shim-test.conf
 fi
 
 # Stop the test copy gently and wait for it to be gone before starting the service:

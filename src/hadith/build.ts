@@ -1,11 +1,11 @@
 // bun run src/hadith/build.ts
-//   dist/device/ayah-toolbar/data/hadith.json        books + items for display and insert
-//   dist/device/ayah-toolbar/data/hadith-index.json  search index (folded matns, trigram postings, numbers)
-//   dist/device/ayah-toolbar/qml/hadith-search.js    src/search/hadith-core.js plus a CommonJS shim
+//   dist/device/midad/data/hadith.json        books + items for display and insert
+//   dist/device/midad/data/hadith-index.json  search index (folded matns, trigram postings, numbers)
+//   dist/device/midad/qml/hadith-search.js    src/search/hadith-core.js plus a CommonJS shim
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { loadHadith } from './load.ts'
 
-const OUT = new URL('../../dist/device/ayah-toolbar/', import.meta.url)
+const OUT = new URL('../../dist/device/midad/', import.meta.url)
 const CORE = new URL('../search/hadith-core.js', import.meta.url)
 
 export const BOOKS = [

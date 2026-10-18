@@ -1,9 +1,9 @@
 #!/bin/sh
 # Device side of the installer's preflight (busybox sh). Prints facts; the host decides.
-# AYAH_* variables exist only so the script can be exercised against a temp tree.
-H=${AYAH_HOME:-/home/root}
-OSREL=${AYAH_OSREL:-/etc/os-release}
-DTMODEL=${AYAH_DTMODEL:-/proc/device-tree/model}
+# MIDAD_* variables exist only so the script can be exercised against a temp tree.
+H=${MIDAD_HOME:-/home/root}
+OSREL=${MIDAD_OSREL:-/etc/os-release}
+DTMODEL=${MIDAD_DTMODEL:-/proc/device-tree/model}
 
 echo "MODEL=$(tr -d '\000' < "$DTMODEL" 2>/dev/null)"
 echo "IMG=$(sed -n 's/^IMG_VERSION=//p' "$OSREL" 2>/dev/null | tr -d '"' | head -n 1)"

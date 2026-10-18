@@ -1,6 +1,6 @@
 // ayahfont: per-category Arabic fonts for xochitl's typed text.
 //
-// Preloaded into xochitl after xovi (LD_PRELOAD from the ayah-toolbar service drop-in). xochitl
+// Preloaded into xochitl after xovi (LD_PRELOAD from the midad service drop-in). xochitl
 // builds each page's typed text as a QTextDocument through QTextCursor calls into QtGui, which
 // go through its PLT and so can be interposed (the document's own layout runs inside QtGui and
 // can't). After xochitl inserts a span of text, if the span is Quran or hadith, the shim merges

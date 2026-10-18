@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Exercises ayah-install / ayah-uninstall / ayah-status and their busybox-sh device scripts
+# Exercises midad-install / midad-uninstall / midad-status and their busybox-sh device scripts
 # against a fake tablet: a temp directory standing in for /home/root, a stub systemctl,
 # journalctl and pidof, and an "ssh" that runs the remote command locally. No real tablet.
 #   test/install/run.sh                      (builds the tools with nix first)
-#   AYAH_TEST_BUSYBOX=1 test/install/run.sh  same, with the "tablet" side restricted to busybox
+#   MIDAD_TEST_BUSYBOX=1 test/install/run.sh  same, with the "tablet" side restricted to busybox
 #                                            applets (the tablet's userland) instead of GNU tools
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 for t in install uninstall status; do
-  eval "$(printf '%s' "$t" | tr a-z A-Z)=$(nix build ".#$t" --no-link --print-out-paths 2>/dev/null)/bin/ayah-$t"
+  eval "$(printf '%s' "$t" | tr a-z A-Z)=$(nix build ".#$t" --no-link --print-out-paths 2>/dev/null)/bin/midad-$t"
 done
 BUNDLE=$(nix build .#bundle --no-link --print-out-paths 2>/dev/null)
 
@@ -35,9 +35,9 @@ cat > "$H/xovi/start" <<'S'
 #!/bin/sh
 # stands in for xovi/start: restart xochitl, hang it if the "break" flag is set and our QMD is in place
 echo "start" >> "$F/start.log"
-if [ -f "$F/break" ] && [ -e "$AYAH_HOME/xovi/exthome/qt-resource-rebuilder/ayahBar.qmd" ]; then rm -f "$F/healthy"; else touch "$F/healthy"; fi
-if [ -f "$AYAH_HOME/ayah-toolbar/lib/libayahfont.so" ] && [ -f "$AYAH_HOME/xovi/services/xochitl.service/ayah-toolbar.conf" ]; then
-  echo "7f00 r-xp 0 /home/root/ayah-toolbar/lib/libayahfont.so" > "$F/proc/$XP/maps"
+if [ -f "$F/break" ] && [ -e "$MIDAD_HOME/xovi/exthome/qt-resource-rebuilder/midad.qmd" ]; then rm -f "$F/healthy"; else touch "$F/healthy"; fi
+if [ -f "$MIDAD_HOME/midad/lib/libayahfont.so" ] && [ -f "$MIDAD_HOME/xovi/services/xochitl.service/midad.conf" ]; then
+  echo "7f00 r-xp 0 /home/root/midad/lib/libayahfont.so" > "$F/proc/$XP/maps"
 else
   echo "7f00 r-xp 0 /usr/lib/libc.so.6" > "$F/proc/$XP/maps"
 fi
@@ -46,7 +46,7 @@ chmod +x "$H/xovi/start"
 printf '#!/bin/sh\necho "$@" >> "$F/systemctl.log"\n' > "$F/bin/systemctl"
 printf '#!/bin/sh\n[ -f "$F/healthy" ] && echo "DeviceReporter enabled"\nexit 0\n' > "$F/bin/journalctl"
 printf '#!/bin/sh\necho %s\n' "$XP" > "$F/bin/pidof"
-if [ "${AYAH_TEST_BUSYBOX:-0}" = 1 ]; then
+if [ "${MIDAD_TEST_BUSYBOX:-0}" = 1 ]; then
   BB=$(nix build --inputs-from . nixpkgs#busybox --no-link --print-out-paths 2>/dev/null)
   mkdir -p "$F/bb"
   for a in $("$BB/bin/busybox" --list); do ln -s "$BB/bin/busybox" "$F/bb/$a"; done
@@ -63,8 +63,8 @@ PATH=$REMOTE_PATH exec sh -c "\$*"
 S
 chmod +x "$F"/bin/*
 
-export AYAH_SSH=$F/bin/fakessh AYAH_HOME=$H AYAH_TMP=$F/tmp AYAH_PROC=$F/proc \
-  AYAH_DTMODEL=$F/model AYAH_OSREL=$F/os-release AYAH_POLL=1 AYAH_GUARD_TIMEOUT=3
+export MIDAD_SSH=$F/bin/fakessh MIDAD_HOME=$H MIDAD_TMP=$F/tmp MIDAD_PROC=$F/proc \
+  MIDAD_DTMODEL=$F/model MIDAD_OSREL=$F/os-release MIDAD_POLL=1 MIDAD_GUARD_TIMEOUT=3
 
 pass=0; failn=0
 ok()   { pass=$((pass + 1)); echo "  ok   $*"; }
@@ -84,23 +84,23 @@ o=$(out "$INSTALL" root@fake); check "wrong model refused" has "not a Paper Pro"
 printf 'reMarkable Ferrari\0' > "$F/model"
 printf 'IMG_VERSION="3.25.1.10"\n' > "$F/os-release"
 o=$(out "$INSTALL" root@fake); check "wrong OS refused" has "Use --force" "$o"
-check "nothing installed after refusals" test ! -e "$H/ayah-toolbar"
+check "nothing installed after refusals" test ! -e "$H/midad"
 printf 'IMG_VERSION="3.26.0.68"\n' > "$F/os-release"
 mv "$H/xovi/exthome/qt-resource-rebuilder/hashtab" "$F/hashtab.away"
 o=$(out "$INSTALL" root@fake); check "missing hashtab explained" has "rebuild_hashtable" "$o"
 mv "$F/hashtab.away" "$H/xovi/exthome/qt-resource-rebuilder/hashtab"
-o=$(AYAH_SSH=/bin/false out "$INSTALL" root@fake); check "unreachable host explained" has "cannot reach" "$o"
+o=$(MIDAD_SSH=/bin/false out "$INSTALL" root@fake); check "unreachable host explained" has "cannot reach" "$o"
 
 echo "== install"
 o=$(out "$INSTALL" root@fake); echo "$o" | sed 's/^/    | /' | tail -12
 check "install reports done" has "done: xochitl restarted healthy" "$o"
 check "one restart" test "$(starts)" = 1
 check "reset-failed ran before the start" grep -q "reset-failed xochitl" "$F/systemctl.log"
-check "tree matches the bundle (sha256)" bash -c "cd '$H' && grep -v '^#' '$BUNDLE/ayah-toolbar/manifest' | sha256sum -c --quiet -"
-check "manifest installed" cmp -s "$BUNDLE/ayah-toolbar/manifest" "$H/ayah-toolbar/manifest"
-check "guard.sh executable" test -x "$H/ayah-toolbar/guard.sh"
-check "no staging dir left" test ! -e "$H/.ayah-stage"
-check "shipped qmd has no broker" bash -c "! grep -q XoviMessageBroker '$H/xovi/exthome/qt-resource-rebuilder/ayahBar.qmd'"
+check "tree matches the bundle (sha256)" bash -c "cd '$H' && grep -v '^#' '$BUNDLE/midad/manifest' | sha256sum -c --quiet -"
+check "manifest installed" cmp -s "$BUNDLE/midad/manifest" "$H/midad/manifest"
+check "guard.sh executable" test -x "$H/midad/guard.sh"
+check "no staging dir left" test ! -e "$H/.midad-stage"
+check "shipped qmd has no broker" bash -c "! grep -q XoviMessageBroker '$H/xovi/exthome/qt-resource-rebuilder/midad.qmd'"
 o=$(out "$STATUS" root@fake)
 check "status: up to date, shim mapped" bash -c "grep -q 'up to date' <<< '$o' && grep -q 'shim=mapped' <<< '$o'"
 
@@ -110,49 +110,49 @@ check "prints up to date" has "up to date" "$o"
 check "no extra restart" test "$(starts)" = 1
 
 echo "== drift is repaired"
-echo "tampered" > "$H/ayah-toolbar/qml/AyahBar.qml"
-o=$(out "$STATUS" root@fake); check "status sees the difference" has "differs: ayah-toolbar/qml/AyahBar.qml" "$o"
+echo "tampered" > "$H/midad/qml/AyahBar.qml"
+o=$(out "$STATUS" root@fake); check "status sees the difference" has "differs: midad/qml/AyahBar.qml" "$o"
 o=$(out "$INSTALL" root@fake)
 check "only the changed file is swapped" bash -c "[ \"\$(grep -c '^  SWAP' <<< '$o')\" = 1 ]"
 check "restart after change" test "$(starts)" = 2
-check "file restored" cmp -s "$BUNDLE/ayah-toolbar/qml/AyahBar.qml" "$H/ayah-toolbar/qml/AyahBar.qml"
+check "file restored" cmp -s "$BUNDLE/midad/qml/AyahBar.qml" "$H/midad/qml/AyahBar.qml"
 
 echo "== --dev swaps the one QMD"
 o=$(out "$INSTALL" root@fake --dev)
-check "dev qmd installed" grep -q XoviMessageBroker "$H/xovi/exthome/qt-resource-rebuilder/ayahBar.qmd"
+check "dev qmd installed" grep -q XoviMessageBroker "$H/xovi/exthome/qt-resource-rebuilder/midad.qmd"
 check "still exactly one qmd" test "$(ls "$H"/xovi/exthome/qt-resource-rebuilder/*.qmd | wc -l | tr -d ' ')" = 1
 o=$(out "$INSTALL" root@fake)
-check "back to the shipped qmd" bash -c "! grep -q XoviMessageBroker '$H/xovi/exthome/qt-resource-rebuilder/ayahBar.qmd'"
+check "back to the shipped qmd" bash -c "! grep -q XoviMessageBroker '$H/xovi/exthome/qt-resource-rebuilder/midad.qmd'"
 
 echo "== a tampered upload is refused and nothing live changes"
-mkdir -p "$H/.ayah-stage/ayah-toolbar/qml"
-echo bogus > "$H/.ayah-stage/ayah-toolbar/qml/AyahBar.qml"
-before=$(sha256sum "$H/ayah-toolbar/qml/AyahBar.qml")
-o=$(AYAH_MF=$F/mf; cp "$BUNDLE/ayah-toolbar/manifest" "$F/mf"; AYAH_MF=$F/mf sh nix/device/apply.sh "$H/.ayah-stage" 2>&1 || true)
+mkdir -p "$H/.midad-stage/midad/qml"
+echo bogus > "$H/.midad-stage/midad/qml/AyahBar.qml"
+before=$(sha256sum "$H/midad/qml/AyahBar.qml")
+o=$(MIDAD_MF=$F/mf; cp "$BUNDLE/midad/manifest" "$F/mf"; MIDAD_MF=$F/mf sh nix/device/apply.sh "$H/.midad-stage" 2>&1 || true)
 check "apply.sh reports the mismatch" has "FAIL checksum mismatch" "$o"
-check "live file untouched" test "$before" = "$(sha256sum "$H/ayah-toolbar/qml/AyahBar.qml")"
-rm -rf "$H/.ayah-stage"
+check "live file untouched" test "$before" = "$(sha256sum "$H/midad/qml/AyahBar.qml")"
+rm -rf "$H/.midad-stage"
 
 echo "== guard rolls back a xochitl that does not start"
-echo "tampered" > "$H/ayah-toolbar/qml/search.js"
+echo "tampered" > "$H/midad/qml/search.js"
 touch "$F/break"
 n=$(starts)
 o=$(out "$INSTALL" root@fake); echo "$o" | sed 's/^/    | /' | tail -6
 check "install reports the rollback" has "did not start healthy" "$o"
-check "files parked" test -e "$H/ayah-disabled/ayahBar.qmd"
-check "qmd no longer live" test ! -e "$H/xovi/exthome/qt-resource-rebuilder/ayahBar.qmd"
+check "files parked" test -e "$H/midad-disabled/midad.qmd"
+check "qmd no longer live" test ! -e "$H/xovi/exthome/qt-resource-rebuilder/midad.qmd"
 check "restarted clean (two starts)" test "$(starts)" = $((n + 2))
 rm -f "$F/break"
-o=$(out "$STATUS" root@fake); check "status lists parked files" has "ayahBar.qmd" "$o"
+o=$(out "$STATUS" root@fake); check "status lists parked files" has "midad.qmd" "$o"
 o=$(out "$INSTALL" root@fake); check "reinstall after rollback is healthy" has "done: xochitl restarted healthy" "$o"
 
 echo "== uninstall"
 n=$(starts)
 o=$(out "$UNINSTALL" root@fake); echo "$o" | sed 's/^/    | /' | tail -10
 check "uninstall reports done" has "libayahfont.so not loaded" "$o"
-check "ayah-toolbar gone" test ! -e "$H/ayah-toolbar"
-check "ayah-disabled gone" test ! -e "$H/ayah-disabled"
-check "qmd, rcc and drop-in gone" bash -c "! ls '$H'/xovi/exthome/qt-resource-rebuilder/ayah* '$H'/xovi/services/xochitl.service/ayah* 2>/dev/null"
+check "midad gone" test ! -e "$H/midad"
+check "midad-disabled gone" test ! -e "$H/midad-disabled"
+check "qmd, rcc and drop-in gone" bash -c "! ls '$H'/xovi/exthome/qt-resource-rebuilder/midad* '$H'/xovi/services/xochitl.service/midad* 2>/dev/null"
 check "xovi files kept" test -e "$H/xovi/xovi.so" -a -e "$H/xovi/exthome/qt-resource-rebuilder/hashtab"
 check "xochitl restarted once" test "$(starts)" = $((n + 1))
 check "shim not in xochitl maps" bash -c "! grep -q libayahfont '$F/proc/$XP/maps'"

@@ -1,5 +1,5 @@
-; rm-ayah-toolbar: load the ayah bar (QML on the tablet) into the open document's scene view.
-; The bar lives in /home/root/ayah-toolbar/qml/AyahBar.qml, so it can change without a restart:
+; midad: load the ayah bar (QML on the tablet) into the open document's scene view.
+; The bar lives in /home/root/midad/qml/AyahBar.qml, so it can change without a restart:
 ;   ayahProbe  -> JSON state of the loader and bar (read-only)
 ;   ayahReload -> reload AyahBar.qml from disk
 ;   ayahBench  -> time the bar's fixed search query mix on the tablet
@@ -16,7 +16,7 @@ AFFECT /qml/device/view/documentview/DeviceSceneView.qml
                 anchors.fill: parent
                 z: 1000
                 property int generation: 0
-                source: "file:///home/root/ayah-toolbar/qml/AyahBar.qml?g=" + generation
+                source: "file:///home/root/midad/qml/AyahBar.qml?g=" + generation
                 onLoaded: item.sceneView = root
             }
 

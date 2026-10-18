@@ -7,7 +7,7 @@ let
     [ "${deviceDir}" "${bundle}" "${bundleDev}" version ];
   common = subst (builtins.readFile ./lib.sh);
   mk = name: script: pkgs.writeShellApplication {
-    name = "ayah-${name}";
+    name = "midad-${name}";
     excludeShellChecks = [ "SC2034" "SC2329" ]; # helpers and variables shared by all three tools
     runtimeInputs = [ pkgs.openssh pkgs.gnutar pkgs.coreutils pkgs.gnugrep pkgs.gnused pkgs.findutils ];
     text = common + "\n" + builtins.readFile script + "\n";

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { loadHadithSearcher, sample } from '../../test/hadith/helpers.ts'
 
 const { hadith } = loadHadithSearcher()
-const dir = new URL('../../dist/device/ayah-toolbar/', import.meta.url)
+const dir = new URL('../../dist/device/midad/', import.meta.url)
 const src = readFileSync(new URL('qml/hadith-search.js', dir), 'utf8')
 const indexText = readFileSync(new URL('data/hadith-index.json', dir), 'utf8')
 const lib = new Function(`${src}\n;return { createHadithSearcher: createHadithSearcher };`)()

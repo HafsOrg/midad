@@ -1,13 +1,13 @@
-# Shared by ayah-install, ayah-uninstall and ayah-status (concatenated ahead of each).
-# AYAH_SSH, AYAH_POLL, AYAH_STAGE, AYAH_HOME and AYAH_TMP exist so the tools can be exercised against a local
+# Shared by midad-install, midad-uninstall and midad-status (concatenated ahead of each).
+# MIDAD_SSH, MIDAD_POLL, MIDAD_STAGE, MIDAD_HOME and MIDAD_TMP exist so the tools can be exercised against a local
 # fake of the tablet; leave them unset on real use.
 DEFAULT_HOST=root@10.11.99.1
-AYAH_SSH=${AYAH_SSH:-"ssh -o BatchMode=yes -o ConnectTimeout=8"}
-AYAH_POLL=${AYAH_POLL:-3}
-DEVHOME=${AYAH_HOME:-/home/root}
-DEVTMP=${AYAH_TMP:-/tmp}
-GUARD_TIMEOUT=${AYAH_GUARD_TIMEOUT:-}
-STAGE=${AYAH_STAGE:-$DEVHOME/.ayah-stage}
+MIDAD_SSH=${MIDAD_SSH:-"ssh -o BatchMode=yes -o ConnectTimeout=8"}
+MIDAD_POLL=${MIDAD_POLL:-3}
+DEVHOME=${MIDAD_HOME:-/home/root}
+DEVTMP=${MIDAD_TMP:-/tmp}
+GUARD_TIMEOUT=${MIDAD_GUARD_TIMEOUT:-}
+STAGE=${MIDAD_STAGE:-$DEVHOME/.midad-stage}
 DEVICE_DIR=@DEVICE@
 VERSION=@VERSION@
 
@@ -22,7 +22,7 @@ die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 # rsh <remote command...>: run a command on the tablet.
 rsh() {
   # shellcheck disable=SC2086
-  $AYAH_SSH "$HOST" "$@"
+  $MIDAD_SSH "$HOST" "$@"
 }
 
 # parse_args <allowed flags, space separated> "$@"
@@ -42,16 +42,16 @@ parse_args() {
 }
 
 # run_device <script> [args...]: run one of the busybox sh scripts on the tablet. The bundle
-# manifest travels ahead of the script and lands in $AYAH_MF on the tablet.
+# manifest travels ahead of the script and lands in $MIDAD_MF on the tablet.
 run_device() {
   local script=$1
   shift
   {
     # shellcheck disable=SC2016
-    printf 'AYAH_MF=${AYAH_TMP:-/tmp}/ayah-manifest.$$\n'
-    printf "cat > \"\$AYAH_MF\" <<'__AYAH_MANIFEST__'\n"
+    printf 'MIDAD_MF=${MIDAD_TMP:-/tmp}/midad-manifest.$$\n'
+    printf "cat > \"\$MIDAD_MF\" <<'__MIDAD_MANIFEST__'\n"
     cat "$MANIFEST"
-    printf '__AYAH_MANIFEST__\n'
+    printf '__MIDAD_MANIFEST__\n'
     cat "$DEVICE_DIR/$script"
   } | rsh "sh -s -- $*"
 }
@@ -75,8 +75,8 @@ poll_log() {
     if printf '%s\n' "$out" | grep -Eq "$pattern"; then
       return 0
     fi
-    sleep "$AYAH_POLL"
-    waited=$((waited + AYAH_POLL))
+    sleep "$MIDAD_POLL"
+    waited=$((waited + MIDAD_POLL))
   done
   return 1
 }
@@ -84,5 +84,5 @@ poll_log() {
 # the mounted bundle, chosen by --dev
 select_bundle() {
   if [ "$DEV" -eq 1 ]; then BUNDLE=@BUNDLE_DEV@; else BUNDLE=@BUNDLE@; fi
-  MANIFEST=$BUNDLE/ayah-toolbar/manifest
+  MANIFEST=$BUNDLE/midad/manifest
 }

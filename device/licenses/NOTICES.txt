@@ -1,10 +1,10 @@
-rm-ayah-toolbar: third-party material in this bundle
+midad: third-party material in this bundle
 =====================================================
 
 This addon has no licence of its own yet (the author has not chosen one).
 The pieces it carries or builds from belong to their authors:
 
-Fonts (installed under ayah-toolbar/fonts/)
+Fonts (installed under midad/fonts/)
   Amiri Regular and Bold   SIL Open Font License 1.1   https://github.com/aliftype/amiri
                            licence text: Amiri-OFL.txt
   Noto Naskh Arabic UI     SIL Open Font License 1.1   https://github.com/notofonts/arabic
@@ -16,7 +16,7 @@ Fonts (installed under ayah-toolbar/fonts/)
                            8a4f39d563ea69c994416a1692827e38156c548d
                            (text-mushafs/UthmanicHafs_V22/uthmanic_hafs_v22.ttf).
 
-Data (built into ayah-toolbar/data/ and ayah-toolbar/qml/)
+Data (built into midad/data/ and midad/qml/)
   Quran text (quran-hafs-v22.json)
                            KFGQPC Hafs v22 text from nuqayah/qpc-fonts (same commit as above);
                            King Fahd Glorious Quran Printing Complex terms apply.

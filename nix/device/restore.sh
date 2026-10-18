@@ -3,8 +3,8 @@
 # shim (busybox sh). The host runs this detached and polls its log.
 # Args: [timeout seconds]
 T=${1:-40}
-H=${AYAH_HOME:-/home/root}
-P=${AYAH_PROC:-/proc}
+H=${MIDAD_HOME:-/home/root}
+P=${MIDAD_PROC:-/proc}
 MARK="DeviceReporter enabled"
 
 systemctl reset-failed xochitl 2>/dev/null

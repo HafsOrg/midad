@@ -2,7 +2,7 @@ usage() {
   cat <<USAGE
 usage: nix run .#install -- [root@HOST] [--dev] [--force]
 
-Installs ayah-toolbar $VERSION onto a reMarkable Paper Pro that runs xovi.
+Installs midad $VERSION onto a reMarkable Paper Pro that runs xovi.
   root@HOST  the tablet (default $DEFAULT_HOST)
   --dev      install the dev QMD (message-broker hooks) instead of the shipped one
   --force    go ahead on an OS version other than 3.26.x
@@ -12,7 +12,7 @@ USAGE
 parse_args "--dev --force" "$@"
 select_bundle
 
-say "ayah-toolbar $VERSION -> $HOST"
+say "midad $VERSION -> $HOST"
 require_reachable
 
 # ---- preflight ----
@@ -55,7 +55,7 @@ manifest_state=$(printf '%s\n' "$chk" | sed -n 's/^MANIFEST //p')
 if [ -z "$changed" ] && [ -z "$stale" ]; then
   if [ "$manifest_state" != "same" ]; then
     # same files, new manifest text (for example a version bump): record it, no restart
-    changed=ayah-toolbar/manifest
+    changed=midad/manifest
     say "files match; updating the manifest only"
   else
     say "up to date ($(printf '%s\n' "$chk" | sed -n 's/^INSTALLED //p')); nothing to do, xochitl not restarted"
@@ -69,13 +69,13 @@ say "to install: $count file(s)$([ -n "$stale" ] && printf ', %s to remove' "$(p
 # ---- upload once, verify, swap ----
 list=$(mktemp)
 trap 'rm -f "$list"' EXIT
-{ printf '%s\n' "$changed"; echo ayah-toolbar/manifest; } | grep . | sort -u > "$list"
+{ printf '%s\n' "$changed"; echo midad/manifest; } | grep . | sort -u > "$list"
 say "uploading to $STAGE ..."
 rsh "rm -rf '$STAGE'"
 tar -C "$BUNDLE" --format=ustar --owner=0 --group=0 --numeric-owner -cf - -T "$list" \
   | { 
       # shellcheck disable=SC2086
-      $AYAH_SSH -C "$HOST" "mkdir -p '$STAGE' && tar -xf - -C '$STAGE'"
+      $MIDAD_SSH -C "$HOST" "mkdir -p '$STAGE' && tar -xf - -C '$STAGE'"
     } || die "upload failed"
 
 res=$(run_device apply.sh "$STAGE") || { printf '%s\n' "$res" >&2; die "install failed on the tablet; live files were not touched unless listed above"; }
@@ -83,17 +83,17 @@ printf '%s\n' "$res" | grep -E '^(VERIFIED|SWAP|REMOVE) ' | sed 's/^/  /'
 printf '%s\n' "$res" | grep -q '^APPLIED ' || die "installer on the tablet did not finish"
 
 # ---- restart through the guard ----
-if [ -z "$(printf '%s\n' "$changed" | grep -v '^ayah-toolbar/manifest$' || true)" ] && [ -z "$stale" ]; then
+if [ -z "$(printf '%s\n' "$changed" | grep -v '^midad/manifest$' || true)" ] && [ -z "$stale" ]; then
   say "manifest updated; xochitl not restarted"
   exit 0
 fi
 say "restarting xochitl through guard.sh (rolls the addon back on its own if xochitl does not come up) ..."
-rsh "rm -f $DEVTMP/ayah-guard.log; setsid nohup sh $DEVHOME/ayah-toolbar/guard.sh $GUARD_TIMEOUT > $DEVTMP/ayah-guard.log 2>&1 < /dev/null &"
-if poll_log "$DEVTMP/ayah-guard.log" 'guard: (healthy|recovered)' 60; then
-  if rsh "grep -q 'guard: healthy' $DEVTMP/ayah-guard.log"; then
-    say "done: xochitl restarted healthy with ayah-toolbar $VERSION"
+rsh "rm -f $DEVTMP/midad-guard.log; setsid nohup sh $DEVHOME/midad/guard.sh $GUARD_TIMEOUT > $DEVTMP/midad-guard.log 2>&1 < /dev/null &"
+if poll_log "$DEVTMP/midad-guard.log" 'guard: (healthy|recovered)' 60; then
+  if rsh "grep -q 'guard: healthy' $DEVTMP/midad-guard.log"; then
+    say "done: xochitl restarted healthy with midad $VERSION"
     exit 0
   fi
-  die "xochitl did not start healthy; the guard parked the addon in /home/root/ayah-disabled and restarted stock. See $DEVTMP/ayah-guard.log on the tablet."
+  die "xochitl did not start healthy; the guard parked the addon in /home/root/midad-disabled and restarted stock. See $DEVTMP/midad-guard.log on the tablet."
 fi
-die "no verdict from the guard within 60 s. Check $DEVTMP/ayah-guard.log on the tablet; to get back to stock xochitl run $DEVHOME/xovi/start (a reboot also does)."
+die "no verdict from the guard within 60 s. Check $DEVTMP/midad-guard.log on the tablet; to get back to stock xochitl run $DEVHOME/xovi/start (a reboot also does)."

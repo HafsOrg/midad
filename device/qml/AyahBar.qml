@@ -1,6 +1,6 @@
 // Ayah bar: a draggable floating button on note pages that opens a fuzzy ayah search and
 // inserts the chosen ayat as typed text (KFGQPC Uthmanic HAFS v22, Subheading paragraph).
-// Loaded by ayahBar.qmd inside xochitl's DeviceSceneView; `sceneView` is that view's root.
+// Loaded by midad.qmd inside xochitl's DeviceSceneView; `sceneView` is that view's root.
 import QtQuick
 import com.remarkable
 import common
@@ -15,7 +15,7 @@ Item {
     readonly property bool active: !!sceneView && !!sceneView.controller && sceneView.notePage
     visible: active
 
-    readonly property string dataDir: "file:///home/root/ayah-toolbar/data/"
+    readonly property string dataDir: "file:///home/root/midad/data/"
     readonly property string quranFont: "kfgqpc_hafs_uthmanic_script"
     readonly property string hadithFont: "Amiri"
     readonly property string uiFont: "Noto Naskh Arabic UI"

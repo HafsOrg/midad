@@ -2,7 +2,7 @@ usage() {
   cat <<USAGE
 usage: nix run .#status -- [root@HOST] [--dev]
 
-Read-only. Shows whether ayah-toolbar is installed, which files differ from this bundle,
+Read-only. Shows whether midad is installed, which files differ from this bundle,
 and whether the font shim is loaded in the running xochitl.
   root@HOST  the tablet (default $DEFAULT_HOST)
   --dev      compare against the dev bundle
@@ -36,7 +36,7 @@ say "files:      $ok match the bundle"
 
 parked=$(line PARKED)
 if [ -n "$parked" ]; then
-  say "parked:     the guard moved files to /home/root/ayah-disabled after a failed start:"
+  say "parked:     the guard moved files to /home/root/midad-disabled after a failed start:"
   printf '%s\n' "$parked" | sed 's/^/  /'
 fi
 

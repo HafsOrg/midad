@@ -6,7 +6,7 @@ import { rng, stripMarks } from '../search/helpers.ts'
 
 export { rng, stripMarks }
 
-const DIR = new URL('../../dist/device/ayah-toolbar/', import.meta.url)
+const DIR = new URL('../../dist/device/midad/', import.meta.url)
 
 export type Hadith = { books: { id: string; ar: string }[]; items: [number, string, string, string, string][] }
 export type Result = { id: number; score: number; kind: 'text' | 'ref' }

@@ -1,5 +1,5 @@
 {
-  description = "rm-ayah-toolbar: Arabic keyboard, ayah/hadith search bar and per-category fonts for the reMarkable Paper Pro";
+  description = "midad is a collection of extensions for the reMarkable Paper Pro that enables Islamic note-taking";
 
   inputs = {
     # The revision whose GCC 15.3 cross compiler built the .so that runs on the tablet.
@@ -62,7 +62,7 @@
 
           # ---- the data and the two search cores, built by the repo's own bun scripts ----
           data = pkgs.stdenvNoCC.mkDerivation {
-            pname = "ayah-toolbar-data";
+            pname = "midad-data";
             inherit version;
             src = lib.fileset.toSource {
               root = ./.;
@@ -105,10 +105,10 @@
             '';
             installPhase = ''
               runHook preInstall
-              built=dist/device/ayah-toolbar
-              mkdir -p $out/ayah-toolbar/data $out/ayah-toolbar/qml
-              cp $built/data/*.json $out/ayah-toolbar/data/
-              cp $built/qml/search.js $built/qml/hadith-search.js $out/ayah-toolbar/qml/
+              built=dist/device/midad
+              mkdir -p $out/midad/data $out/midad/qml
+              cp $built/data/*.json $out/midad/data/
+              cp $built/qml/search.js $built/qml/hadith-search.js $out/midad/qml/
               runHook postInstall
             '';
             doInstallCheck = true;
@@ -192,7 +192,7 @@
             '';
             installPhase = ''
               runHook preInstall
-              install -Dm644 libayahfont.so $out/ayah-toolbar/lib/libayahfont.so
+              install -Dm644 libayahfont.so $out/midad/lib/libayahfont.so
               install -Dm644 libayahfont.raw.so $out/share/libayahfont.raw.so
               runHook postInstall
             '';
@@ -200,46 +200,46 @@
 
           # ---- the keyboard layout resource ----
           keyboard = pkgs.stdenvNoCC.mkDerivation {
-            pname = "ayah-kbd-rcc";
+            pname = "midad-kbd-rcc";
             inherit version;
             src = lib.fileset.toSource {
               root = ./device;
-              fileset = lib.fileset.unions [ ./device/ayah-kbd.qrc ./device/keyboard ];
+              fileset = lib.fileset.unions [ ./device/midad-kbd.qrc ./device/keyboard ];
             };
             dontFixup = true;
             buildPhase = ''
               runHook preBuild
-              ${qtbase}/libexec/rcc --binary --no-compress --format-version 3 ayah-kbd.qrc -o ayah-kbd.rcc
+              ${qtbase}/libexec/rcc --binary --no-compress --format-version 3 midad-kbd.qrc -o midad-kbd.rcc
               runHook postBuild
             '';
             installPhase = ''
-              install -Dm644 ayah-kbd.rcc $out/xovi/exthome/qt-resource-rebuilder/ayah-kbd.rcc
+              install -Dm644 midad-kbd.rcc $out/xovi/exthome/qt-resource-rebuilder/midad-kbd.rcc
             '';
           };
 
           # ---- the tree that lands under /home/root ----
           mkBundle = { dev ? false }:
-            pkgs.runCommand "ayah-toolbar-bundle${lib.optionalString dev "-dev"}-${version}"
+            pkgs.runCommand "midad-bundle${lib.optionalString dev "-dev"}-${version}"
               {
                 nativeBuildInputs = [ pkgs.coreutils pkgs.findutils ];
-                qmd = if dev then ./dev/ayahBar.qmd else ./device/qmd/ayahBar.qmd;
+                qmd = if dev then ./dev/midad.qmd else ./device/qmd/midad.qmd;
                 variant = if dev then "dev" else "shipped";
               } ''
-              mkdir -p $out/ayah-toolbar/{qml,fonts,licenses} \
+              mkdir -p $out/midad/{qml,fonts,licenses} \
                        $out/xovi/exthome/qt-resource-rebuilder \
                        $out/xovi/services/xochitl.service
-              cp -r ${data}/ayah-toolbar/. $out/ayah-toolbar/
-              cp -r ${ayahfont}/ayah-toolbar/lib $out/ayah-toolbar/
+              cp -r ${data}/midad/. $out/midad/
+              cp -r ${ayahfont}/midad/lib $out/midad/
               cp -r ${keyboard}/xovi/. $out/xovi/
               chmod -R u+w $out
-              cp ${./device/qml/AyahBar.qml} $out/ayah-toolbar/qml/AyahBar.qml
-              cp ${./device/fonts}/*.ttf $out/ayah-toolbar/fonts/
-              cp ${./device/fonts.conf} $out/ayah-toolbar/fonts.conf
-              cp ${./device/guard.sh} $out/ayah-toolbar/guard.sh
-              cp $qmd $out/xovi/exthome/qt-resource-rebuilder/ayahBar.qmd
-              cp ${./device/ayah-toolbar.conf} $out/xovi/services/xochitl.service/ayah-toolbar.conf
+              cp ${./device/qml/AyahBar.qml} $out/midad/qml/AyahBar.qml
+              cp ${./device/fonts}/*.ttf $out/midad/fonts/
+              cp ${./device/fonts.conf} $out/midad/fonts.conf
+              cp ${./device/guard.sh} $out/midad/guard.sh
+              cp $qmd $out/xovi/exthome/qt-resource-rebuilder/midad.qmd
+              cp ${./device/midad.conf} $out/xovi/services/xochitl.service/midad.conf
 
-              L=$out/ayah-toolbar/licenses
+              L=$out/midad/licenses
               cp ${./device/licenses/NOTICES.txt} $L/NOTICES.txt
               cp ${amiriOfl} $L/Amiri-OFL.txt
               cp ${notoOfl} $L/NotoNaskhArabic-OFL.txt
@@ -251,28 +251,28 @@
               # Modes as they should land on the tablet.
               find $out -type d -exec chmod 755 {} +
               find $out -type f -exec chmod 644 {} +
-              chmod 755 $out/ayah-toolbar/guard.sh
+              chmod 755 $out/midad/guard.sh
 
               # Manifest: version, variant, then sha256sum lines relative to /home/root.
               # The installer compares it with the tablet to decide what changed.
               (
-                echo "# ayah-toolbar ${version}"
+                echo "# midad ${version}"
                 echo "# variant: $variant"
                 cd $out
-                LC_ALL=C find . -type f ! -path ./ayah-toolbar/manifest | LC_ALL=C sort | sed 's|^\./||' \
+                LC_ALL=C find . -type f ! -path ./midad/manifest | LC_ALL=C sort | sed 's|^\./||' \
                   | while IFS= read -r f; do sha256sum "$f"; done
               ) > $TMPDIR/manifest
-              install -m 644 $TMPDIR/manifest $out/ayah-toolbar/manifest
+              install -m 644 $TMPDIR/manifest $out/midad/manifest
             '';
           bundle = mkBundle { };
           bundleDev = mkBundle { dev = true; };
 
           # ---- deterministic release tarball for the Vellum recipe ----
-          release = pkgs.runCommand "ayah-toolbar-${version}-aarch64.tar.gz"
+          release = pkgs.runCommand "midad-${version}-aarch64.tar.gz"
             { nativeBuildInputs = [ pkgs.gnutar pkgs.gzip ]; } ''
             cd ${bundle}
             tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner --mode='u=rwX,go=rX' \
-                --format=gnu -cf - ayah-toolbar xovi | gzip -n -9 > $out
+                --format=gnu -cf - midad xovi | gzip -n -9 > $out
           '';
 
           # ---- host tools: installer, uninstaller, status ----
@@ -291,16 +291,16 @@
       apps = forAll (system:
         let p = self.packages.${system}; in
         {
-          install = { type = "app"; program = "${p.install}/bin/ayah-install"; };
-          uninstall = { type = "app"; program = "${p.uninstall}/bin/ayah-uninstall"; };
-          status = { type = "app"; program = "${p.status}/bin/ayah-status"; };
+          install = { type = "app"; program = "${p.install}/bin/midad-install"; };
+          uninstall = { type = "app"; program = "${p.uninstall}/bin/midad-uninstall"; };
+          status = { type = "app"; program = "${p.status}/bin/midad-status"; };
         });
 
       # `nix flake check` lints the busybox sh that runs on the tablet.
       checks = forAll (system:
         let pkgs = nixpkgs.legacyPackages.${system}; in
         {
-          device-scripts = pkgs.runCommand "ayah-device-scripts-shellcheck"
+          device-scripts = pkgs.runCommand "midad-device-scripts-shellcheck"
             { nativeBuildInputs = [ pkgs.shellcheck ]; } ''
             shellcheck --shell=sh ${./nix/device}/*.sh ${./device/guard.sh}
             touch $out
