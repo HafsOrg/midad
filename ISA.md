@@ -3,9 +3,9 @@ task: "Ayah toolbar with Arabic keyboard and fuzzy search on reMarkable"
 slug: 20261018-031836_rm-ayah-toolbar
 project: midad
 phase: climbing
-progress: 42/46
+progress: 48/54
 started: 2026-10-18T03:18:36+03:00
-updated: 2026-10-19T00:24:00+03:00
+updated: 2026-10-19T01:42:00+03:00
 principal_stated_goal: "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search."
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 4
@@ -44,10 +44,6 @@ I'm writing in a note, tap a small floating ayah button, type a few words the wa
 
 "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search." Done means: on the tablet, inside the open test note, I can type an Arabic query on an on-device Arabic keyboard, get the intended ayah from a fuzzy search, and insert it (or a range) into the note in quran-png's KFGQPC rendering, with the insertion persisting and the rest of the note untouched.
 
-## Not yet specified
-
-- fog: how far a dragged insert can move. xochitl 3.26 gives each page one typed-text flow from a fixed origin, and exposes no way for an addon to create strokes or images, so "any line of the page, still typed text" and "anywhere, as a non-text object" ship different things (asked 2026-10-19).
-
 ## Features
 
 ### F1 · Arabic keyboard
@@ -81,7 +77,7 @@ Why: the point of the whole thing is the ayah on my page, in my note, staying th
 - [x] C14: A selected range (e.g. 1:1-7) inserts in order.
 - [x] C15: The insert persists after closing and reopening the note.
 - [x] C16: An insert of a ≤ 2-line ayah finishes in ≤ 10 s.
-- [x] C17: The insert can be undone in one step.
+- [ ] C17: The insert can be undone in one step. (reopened 2026-10-19: an ayah insert now takes two undos, the paste and then its Subheading switch; a hadith insert takes one)
 - [x] C18: Anti: typed text already on the page keeps its content and style; each insert is its own paragraph. (Handwriting anchored below the insertion point moves down with the text, as xochitl does for any typed text.)
 - [x] C23: Anti: no general-purpose eval or shell surface ships; the hook accepts only fixed commands (probe, reload of our own bar file, bench).
 - [ ] C24: [SUPERSEDED — principal chose the size split, see Decisions 05:45] Inserted ayat keep the QPC font at all four text sizes (Title, Subheading, Subheading2, Paragraph) when the size is changed from the format menu.
@@ -127,9 +123,17 @@ Why: anyone with a Paper Pro on xovi (the principal included, after a reset) can
 - [x] C45: Anti: the principal's tablet ends the rename with exactly one install, the midad one: no ayah-toolbar folder, ayahBar.qmd, ayah-kbd.rcc or ayah-toolbar.conf left, xochitl healthy with the shim loaded from /home/root/midad, and /home/root/ayah-backups untouched.
 
 ### F9 · Draggable inserts
-Why: typed text always starts at the top of the page's text column, so an insert can land on my handwriting, and xochitl offers no way to move it ("also we want to make the text objects we add draggable, it seems like there's no good way to this from the ui", 2026-10-19).
+Why: typed text always starts at the top of the page's text column, so an insert can land on my handwriting, and xochitl offers no way to move it ("also we want to make the text objects we add draggable, it seems like there's no good way to this from the ui", 2026-10-19). Then: "this should also work in pdfs and we should change location of the text anywhere and not only up and down" (2026-10-19): my course PDFs carry wide margins for notes, and an ayah belongs next to the passage it explains.
 
-- [ ] C46: An inserted ayah or hadith can be dragged on the tablet to a new spot on the page, and it is still there after the note is closed and reopened.
+- [x] C46: An inserted ayah or hadith can be dragged on the tablet to a new spot on the page, and it is still there after the note is closed and reopened.
+- [x] C47: With the text tool active and the cursor in an inserted ayah or hadith (a paragraph the font shim treats as one), a drag handle shows beside that paragraph; no handle shows for any other paragraph, or outside text mode.
+- [x] C48: Dragging the handle n lines down moves the insert n lines down (within one line) through empty lines and past the end of the text; dragging up moves it through empty lines and stops at the text above; with the keyboard open, a drag stops above it.
+- [x] C49: Anti: a move adds or removes only empty lines; every paragraph keeps its text and its paragraph style, the moved insert included.
+- [x] C50: Anti: while there are enough empty lines below the insert, nothing below it moves; past them, the text below moves down by the shortfall only.
+- [x] C51: One undo puts the page back exactly as it was before the move (two when the move splits or joins the page's first paragraph, since xochitl restyles it and the move restyles it back).
+- [x] C52: Anti: reading the page's text for the handle leaves the clipboard holding what it held before.
+- [ ] C53: An insert can be dragged to any spot on the page, sideways as well as up and down, and stays there after the note is closed and reopened.
+- [ ] C54: The ayah and hadith bar works on PDF pages: inserting, and moving an insert anywhere on the page, as on notes.
 
 ### F0 · Cross-cutting
 Why: this is the principal's daily device with real notes on it.
@@ -163,6 +167,13 @@ Why: this is the principal's daily device with real notes on it.
 | C20 | ui | tap button, screenshot | panel with input + results | rmshot | Goal |
 | C21 | ui | use pen, eraser, floating toolbar after install | all work | rminput + rmshot | Anti |
 | C22 | fs | mtime scan of xochitl data dir vs start | only test note changed | ssh find -newer | Anti |
+| C46 | ui | drag an insert on Tesr, close and reopen the note, screenshot | insert at the new spot | rminput swipe + rmshot | Goal |
+| C47 | ui | cursor in an insert, in the user's own text, and in pen mode | handle only in the first case | rmshot | Goal |
+| C48 | probe | drag n lines down and up, read the insert's bounds | moved n × line pitch ± 1 line; up stops at text | rmhook + rmshot | Goal |
+| C49 | probe | page text before and after a move, empty paragraphs removed; paragraph styles | identical | rmhook | Anti |
+| C50 | probe | bounds of the next paragraph before and after a move | unchanged while space allows | rmhook | Anti |
+| C51 | probe | undo after a move, page text and styles | equal to before | rmhook | Goal |
+| C52 | probe | clipboard text before and after a read | equal | rmhook | Anti |
 
 ## Decisions
 
@@ -213,6 +224,15 @@ Why: this is the principal's daily device with real notes on it.
 - 2026-10-18 20:06: README previews are three shots from Tesr page 2, the blank page the principal added: the page after two inserts, then the ayah and hadith panels mid-search. The keyboard shows in both panel shots, so it gets no shot of its own. Images are 16-level grayscale PNGs (49–86 KB); the panels are scaled to 1080 px wide for a two-column table.
 - 2026-10-18 20:33: pushed to the principal's GitHub org HafsOrg (one member) as a private repo, since no license is chosen yet. Origin uses ssh: the global git credential helper points at a gh store path that no longer exists. Then renamed to midad everywhere; the principal chose the name and the scope, and the description is the principal's line. Component names (AyahBar.qml, libayahfont.so, ayahProbe…) stay, since they name parts rather than the product. On the tablet, the pre-rename uninstaller built from ee032ec removes the old install before midad installs fresh, so no migration code ships.
 - 2026-10-19 00:24: tablet migrated: the ee032ec uninstaller removed the old install, then `install --dev` put midad in place. A "throwaway" first tap after the restart landed where aimed and opened the principal's kadaya.margin.pdf; I closed it without touching the page. xochitl rewrote that document's .content, .metadata and .pagedata as it does on any open: `lastOpened` moved, `lastModified` did not, and no page or annotation file changed.
+- 2026-10-19 00:26: dragging inserts — the principal chose "up/down, stays text" over turning inserts into ink (needs xochitl's stroke internals) or a midad-drawn layer (lost from exports and sync). xochitl already drags *selected* text with the pen, but only to a spot inside existing text. What probes on Tesr page 2 established (each undone afterwards, page verified back to its 689-character text):
+  - Text reads: in text mode, `selectTextRange(0, len)` + `copySelectedText()` copies the page; the controller emits `textCopied`, xochitl's own handler sets `Clipboard.text`, and `Clipboard.textString()` gives the plain string, indices 1:1 with `rootDocumentLength`. The copy lands asynchronously after edits, so a read waits for `textCopied`.
+  - Cursor, bounds and style update about 10 ms after each controller call; calls run in order, so one move can be issued as a batch.
+  - A newline at a paragraph's start splits it: the empty first part keeps the style and the text becomes Paragraph. A newline at a paragraph's end adds a Paragraph-style empty line. Merging two paragraphs keeps the first one's style.
+  - An empty `pasteText` deletes the selection; `MergeWithPreviousAction` folds pastes into the previous undo step; `cycleParagraphStyle` is its own undo step; `setParagraphStyle` with a saved style object did nothing; input-method transactions don't group undo.
+  - An empty Paragraph line is 38 units tall at a 69.55-unit pitch.
+  Design: the handle shows when the cursor sits in a paragraph that starts with the ayah or hadith tag. Moving down deletes empty lines just after the insert (merging them into it) and adds the same number at the end of the paragraph above it; moving up does the reverse. The insert's own characters never move, so its style and any handwriting anchored to it come along. Only when the insert is the page's first paragraph does it have to be split, and its style is then restored with one more undo step.
+- 2026-10-19 01:42: up/down moves shipped. `device/qml/move.js` plans the edits as a pure function, property-tested under bun (only newlines removed or added, text and order intact, the text-below rule, never splitting an insert except the page's first paragraph); the bar runs the plan as one merged batch, restores the insert's style when a split or join changed it, then corrects once if the insert landed more than half a line from the outline. Inserts are recognised by the shim's own rule, so pre-tag ayat get a handle too. Device runs on Tesr page 2 covered every case, then put the page back to its 689-character original with the handle itself. Found on the way: an ayah insert takes two undos (C17 reopened), and xochitl reports the keyboard rectangle at y = 0, so the drag limit derives the keyboard's top from its height.
+- 2026-10-19 01:42: the principal then asked for any position and for PDFs. xochitl's text API has no sideways placement, and `enterTextMode` refuses non-note pages ("not a notepage"), so neither comes from the API. Next probe: whether the shim can give one paragraph its own block margins inside xochitl's QTextDocument, which would give sideways placement while inserts stay typed text.
 
 ## Remaining Work
 
@@ -223,6 +243,8 @@ Why: this is the principal's daily device with real notes on it.
 - [x] Read the Worker's quran-search-engine comparison when it lands; port a technique only if it clearly wins. (49ddfdf: ours wins every class but Latin phonetic, where QSE gets 25% vs our 0%; QSE needs ES2022 and runs 225–565 ms p50 on the host, so it stays out)
 - [ ] C21: check pen, eraser and the floating toolbar still behave with the bar loaded.
 - [ ] Old inserts carrying U+06DD (pre-QPC format, e.g. Tesr's first Fatiha block) show a doubled ornament under QPC — re-insert them, or have the shim hide U+06DD; the principal's call.
+- [ ] C17: make an ayah insert one undo again — the Subheading switch after the paste is its own step, and `cycleParagraphStyle` takes no merge mode.
+- [ ] The empty line split off a page's first paragraph shows 19 units taller until the note reloads (Qt gives the new line the insert's character format while editing live); undo and reopen show the stored 38.
 
 ## Learning
 
@@ -230,6 +252,8 @@ Why: this is the principal's daily device with real notes on it.
 - conjectured: after a restart, tapping where the "Reopen" banner was reopens the test note; refuted by: the banner had gone, the tap opened a real note from the grid, and the hook pasted into it; learned: injected navigation is blind unless each tap is checked against a fresh screenshot, and the first injected touch after a restart lands top-left; criterion now: screenshot before every navigation tap, and the hook itself refuses to paste outside the dev allowlist (C22.1).
 - conjectured: any Arabic typed text falls back to the Quran font once fontconfig prefers it for the text family; refuted by: Subheading2/Paragraph pastes rendered in Naskh with plain digits; learned: xochitl's text styles use two families and the body one is shared with the UI; criterion now: inserts use a serif-family style (Subheading).
 - conjectured: the first injected touch after a restart always lands top-left, so a throwaway tap anywhere is safe; refuted by: on 2026-10-19 it landed where aimed and opened a real document from the grid; learned: the quirk is intermittent, so no tap is throwaway; criterion now: a throwaway tap goes only on a spot that is blank in every state (the library header), and every navigation tap is checked against a fresh screenshot.
+- conjectured: a move's empty lines are invisible, so their style doesn't matter; refuted by: after moving the page's first paragraph, an empty line kept the ayah's Subheading style, and undoing a later move restored it as Paragraph, shifting everything below by 43 units; learned: empty lines carry style and spacing, and xochitl's undo doesn't restore their styles exactly; criterion now: every empty line a move creates is a Paragraph line, and undo is checked by a survey of every paragraph's position, not by its text alone.
+- conjectured: `Qt.inputMethod.keyboardRectangle` gives the keyboard's place on screen; refuted by: xochitl reports (0, 0, 1620, 544), and a drag clamped to it could not move at all; learned: the rectangle's height is right and its position is not; criterion now: the keyboard's top is the screen height minus its height, less xochitl's formatting bar.
 
 ## Verification
 
@@ -254,3 +278,10 @@ Why: this is the principal's daily device with real notes on it.
 - C43: all three viewed: only Tesr page 2, the panels, the keyboard and stock toolbars; each PNG holds only IHDR/IDAT/IEND chunks.
 - C44: commits 3860a2c, 3d79a8c; `nix flake check` passes; install suite 44/0 with GNU and busybox; `bun run test` 38/0 (= baseline); Vellum lint `PASS: midad`; `gh repo view` → midad, PRIVATE; old-name search over tracked files (excluding ISA.md) empty.
 - C45: tablet after migration: `status --dev` up to date (24 files), pid 13203 LD_PRELOAD and maps → /home/root/midad/lib/libayahfont.so; no ayah-toolbar dir or ayah* file in either xovi folder; ayah-backups md5 = snapshot E; outside midad only xochitl state files changed; screenshot mig4 (Tesr page 2, آية/حديث buttons, QPC + Amiri).
+- C46: Tesr page 2 surveyed before closing and after reopening: every paragraph at the same position and style (ayah 409.1, hadith 896.2).
+- C47: probes: handle for ayah and hadith; none for an empty line, a typed paragraph ("ملاحظة نصية من المستخدم") or pen mode; `test/move` insertAt and isInsert cases.
+- C48: device moves: 3 lines down = 208.6, 2 = 139.1, 1 = 69.5; first paragraph 3 down landed 18.5 from the outline; up 5 stopped after 3 at the ayah; up to the page top; screenshot g6 (drag stops above the keyboard).
+- C49: `bun test test/move` (4 pass, 31,650 checks, mutants caught); surveys show 421/267-character paragraphs and their styles unchanged through every move.
+- C50: hadith at 984.7 and 965.7 before and after moving the ayah down 2 into empty lines; property test's text-below rule.
+- C51: one undo after a 2-line move restored the survey exactly; first-paragraph moves (down 3, up to top) restored S0 after two.
+- C52: clipboard "MIDAD-CLIP-TEST" unchanged after two reads and a move.

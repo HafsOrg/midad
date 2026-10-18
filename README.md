@@ -4,6 +4,7 @@ midad is a collection of extensions for the reMarkable Paper Pro that enables Is
 
 - an **Arabic keyboard** layout in the stock on-screen keyboard;
 - a **floating search bar** in the note editor: type a few words of an ayah or a hadith the way you remember them (no tashkeel, wrong hamzas, a typo or two), tap the result, and it lands in your note as typed text;
+- a **move handle** beside each insert, so you can drag it up or down the page, out of the way of your handwriting;
 - **Arabic fonts**: the KFGQPC Hafs Quran font for ayat, Amiri for hadith and your own Arabic, so Arabic text stops rendering as boxes.
 
 It covers the whole Quran (6,236 ayat) and Sahih al-Bukhari and Sahih Muslim (about 13,800 matns). Everything runs on the tablet, offline.
@@ -45,7 +46,7 @@ nix run .#install -- --force           # skip the OS version check (other firmwa
 Everything lives under `/home/root`:
 
 ```
-midad/qml/       AyahBar.qml, search.js, hadith-search.js
+midad/qml/       AyahBar.qml, search.js, hadith-search.js, move.js
 midad/data/      index.json, quran-hafs-v22.json, surahs.json, hadith.json, hadith-index.json
 midad/fonts/     Amiri, Noto Naskh Arabic UI, KFGQPC Hafs v22
 midad/fonts.conf, guard.sh, lib/libayahfont.so, licenses/, manifest
@@ -60,6 +61,8 @@ xovi/services/xochitl.service/midad.conf
 **Keyboard.** xochitl's on-screen keyboard reads its layouts from `:/misc/keyboards/<code>/keyboard_layout.json` inside its Qt resources. `midad-kbd.rcc` carries an `ar_SA` layout there; qt-resource-rebuilder merges it in at startup, and "Arabic" appears in the stock language list. No xochitl code is patched.
 
 **Search bar.** `midad.qmd` is a qt-resource-rebuilder patch for the note editor's scene view. It inserts a single `Loader` that loads `/home/root/midad/qml/AyahBar.qml`, a floating button and panel. The bar searches with `search.js` and `hadith-search.js` (a trigram index with fuzzy matching) over the JSON files in `data/`, and inserts the chosen text at the cursor, or at the end of the page's text, as its own paragraph.
+
+**Moving inserts.** xochitl gives each page one column of typed text that starts at the top, and has no way to move it. With the text tool active, put the cursor in an inserted ayah or hadith (right after an insert it is already there) and a handle appears beside it. Drag the handle down and the insert moves down by whole lines; drag it up and it moves back up until it meets the text above. An outline shows where it will land. The handle only changes empty lines: the ones just below the insert are moved above it, so text further down stays put while there is room, and the insert's own characters, style and any handwriting anchored to them come along. `move.js` plans these edits (`bun test test/move` checks them), and one undo reverses a move. Two exceptions take a second undo: moving the page's first paragraph down, and moving an insert up to the page's first line, because xochitl changes the paragraph's style there and the bar changes it back.
 
 **Fonts.** `midad.conf` is a systemd drop-in that xovi copies into xochitl's service. It points `FONTCONFIG_FILE` at `fonts.conf`, which adds our font directory and makes Amiri the Arabic fallback for the families xochitl uses. That gives every Arabic character a glyph.
 

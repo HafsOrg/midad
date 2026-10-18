@@ -1,11 +1,14 @@
 // Ayah bar: a draggable floating button on note pages that opens a fuzzy ayah search and
 // inserts the chosen ayat as typed text (KFGQPC Uthmanic HAFS v22, Subheading paragraph).
+// In text mode, a handle beside an insert moves it up or down the page.
 // Loaded by midad.qmd inside xochitl's DeviceSceneView; `sceneView` is that view's root.
 import QtQuick
 import com.remarkable
 import common
+import xofm.libs.peninput
 import "search.js" as Search
 import "hadith-search.js" as HadithSearch
+import "move.js" as Move
 
 Item {
     id: bar
@@ -14,6 +17,7 @@ Item {
     property var sceneView: null
     readonly property bool active: !!sceneView && !!sceneView.controller && sceneView.notePage
     visible: active
+    onActiveChanged: contentChanged()
 
     readonly property string dataDir: "file:///home/root/midad/data/"
     readonly property string quranFont: "kfgqpc_hafs_uthmanic_script"
@@ -44,6 +48,29 @@ Item {
     // Remembered when the panel opens: where typed text should go.
     property bool openedInTextMode: false
     property int openedCursorIndex: -1
+
+    // Moving inserts up and down the page; move.js plans the edits.
+    readonly property real linePitch: 69.55 // scene units per empty Paragraph line
+    property string pageText: ""            // the page's typed text, as last read
+    property bool pageTextFresh: false
+    property bool reading: false
+    property var clipboardBeforeRead: null
+    property var block: null                // the insert holding the cursor: {start, end}
+    property var moveFrom: null             // taken when the handle is pressed
+    property int dragLines: 0
+    property real dragPointerY: 0
+    property bool moving: false
+    readonly property bool handleShown: active && sceneView.textMode && !panel.visible && !moving
+                                        && !!block && !sceneView.controller.hasSelection
+    readonly property rect blockRect: {
+        const c = sceneView ? sceneView.controller : null;
+        const tm = sceneView ? sceneView.tileManager : null;
+        if (!c || !tm)
+            return Qt.rect(0, 0, 0, 0);
+        void tm.scale; // map again when the page is zoomed or scrolled
+        void tm.center;
+        return sceneView.sceneToView(c.textParagraphBounds);
+    }
 
     function arabicDigits(n) {
         return String(n).replace(/[0-9]/g, (d) => "٠١٢٣٤٥٦٧٨٩"[Number(d)]);
@@ -237,6 +264,193 @@ Item {
                        at: at, length: len };
     }
 
+    // Reads the page's typed text with xochitl's own copy; finishRead puts the clipboard back.
+    // The controller runs the three calls in order, so nothing typed can land in between.
+    function readPage() {
+        const c = sceneView.controller;
+        if (!active || !sceneView.textMode || panel.visible || moving || reading || c.hasSelection)
+            return;
+        const len = c.rootDocumentLength;
+        const cur = c.textCursorIndex;
+        if (cur < 0 || cur > len)
+            return;
+        reading = true;
+        clipboardBeforeRead = Clipboard.text;
+        c.selectTextRange(0, len);
+        c.copySelectedText();
+        c.selectTextRange(cur, cur);
+        readTimeout.restart();
+    }
+
+    function finishRead(content) {
+        reading = false;
+        readTimeout.stop();
+        Clipboard.text = content;
+        pageText = Clipboard.textString();
+        pageTextFresh = pageText.length === sceneView.controller.rootDocumentLength;
+        // xochitl's own textCopied handler sets the clipboard too, so restore after it runs.
+        const before = clipboardBeforeRead;
+        Qt.callLater(() => { Clipboard.text = before; });
+        updateBlock();
+    }
+
+    function contentChanged() {
+        pageTextFresh = false;
+        block = null;
+        readDelay.restart();
+    }
+
+    // The insert holding the cursor, if any (move.js: the paragraphs the font shim styles).
+    function updateBlock() {
+        const c = sceneView ? sceneView.controller : null;
+        if (!c || !pageTextFresh || moving) {
+            block = null;
+            // A read skipped while something was selected is retried once the cursor moves.
+            if (c && !pageTextFresh && !moving)
+                readDelay.restart();
+            return;
+        }
+        block = Move.insertAt(pageText, c.textCursorIndex);
+    }
+
+    function styleName() {
+        const st = sceneView.controller.textParagraphStyle;
+        if (!st)
+            return "";
+        for (const n of ["Title", "Subheading", "Subheading2", "Paragraph"])
+            if (st.matchesButtonStyle(ParagraphStyle.Type[n]))
+                return n;
+        return "";
+    }
+
+    function beginMove(y) {
+        if (!handleShown)
+            return;
+        const c = sceneView.controller;
+        moveFrom = {
+            layout: Move.layoutAround(pageText, block.start, block.end, c.textCursorIndex),
+            style: styleName(),
+            bounds: c.textParagraphBounds,
+            pressY: sceneView.viewToScene(Qt.point(0, y)).y
+        };
+        dragLines = 0;
+        dragPointerY = y;
+    }
+
+    function dragMove(y) {
+        if (!moveFrom)
+            return;
+        dragPointerY = y;
+        const b = moveFrom.bounds;
+        const dy = sceneView.viewToScene(Qt.point(0, y)).y - moveFrom.pressY;
+        // Land where it can be seen: above the keyboard and xochitl's formatting bar when they
+        // are open. xochitl reports the keyboard at y = 0, though it sits at the screen's bottom.
+        let limit = bar.height;
+        if (Qt.inputMethod.visible) {
+            const r = Qt.inputMethod.keyboardRectangle;
+            limit = (r.y > 0 ? bar.mapFromItem(null, 0, r.y).y : bar.height - r.height) - 96;
+        }
+        const bottom = sceneView.viewToScene(Qt.point(0, limit - 24)).y;
+        const most = Math.max(0, Math.floor((bottom - b.y - b.height) / linePitch));
+        dragLines = Math.max(-moveFrom.layout.emptyAbove, Math.min(most, Math.round(dy / linePitch)));
+    }
+
+    function endMove(y) {
+        if (!moveFrom)
+            return;
+        dragMove(y);
+        const m = moveFrom, k = dragLines;
+        moveFrom = null;
+        dragLines = 0;
+        if (k === 0)
+            return;
+        moving = true;
+        block = null;
+        const layout = m.layout;
+        moveCheck.pending = { state: applyMove(layout, k, m.style, SceneController.NoMerge, true),
+                              targetY: m.bounds.y + k * linePitch, pushed: k > layout.emptyBelow && layout.textBelow,
+                              controller: sceneView.controller, style: m.style, tries: 0, restyled: false,
+                              corrected: false };
+        moveCheck.restart();
+    }
+
+    function cancelMove() {
+        moveFrom = null;
+        dragLines = 0;
+    }
+
+    // Runs move.js's plan as one batch of controller calls, merged into one undo step after
+    // the first edit, and returns the layout around the insert afterwards.
+    function applyMove(layout, k, style, firstMerge, keepBelow) {
+        const c = sceneView.controller;
+        const plan = Move.planMove(layout, k, keepBelow);
+        const clipboard = Clipboard.text;
+        let merge = firstMerge;
+        if (plan.lines > 0 && layout.start === 0 && style && style !== "Paragraph") {
+            // Moving the page's first paragraph down splits it: the empty line keeps the insert's
+            // style and the insert gets Paragraph. Switching it to Paragraph first keeps every
+            // empty line a Paragraph line, so undo restores the same spacing; finishMove
+            // switches it back.
+            c.selectTextRange(layout.cursor, layout.cursor);
+            c.cycleParagraphStyle(ParagraphStyle.Type.Paragraph);
+            merge = SceneController.MergeWithPreviousAction;
+        }
+        for (const e of plan.edits) {
+            c.selectTextRange(e[0], e[1]);
+            Clipboard.setTextFromString(e[2]);
+            c.pasteText(Clipboard.text, SceneController.KeepStyle, merge);
+            merge = SceneController.MergeWithPreviousAction;
+        }
+        c.selectTextRange(plan.after.cursor, plan.after.cursor);
+        Clipboard.text = clipboard;
+        return plan.after;
+    }
+
+    // Runs once the batch has landed. A move that split the page's first paragraph, or joined
+    // the insert to the page's first line, left it in another style, so its own goes back
+    // first. Then, if the insert sits more than half a line from the outline (line spacing
+    // depends on the styles around it), one round of empty lines above it fixes that.
+    function finishMove() {
+        const c = active ? sceneView.controller : null;
+        const p = moveCheck.pending;
+        // The page or note changed under the move: leave the new one alone.
+        if (c !== p.controller) {
+            moveCheck.pending = null;
+            moving = false;
+            contentChanged();
+            return;
+        }
+        if (c.textCursorIndex !== p.state.cursor && p.tries < 6) {
+            p.tries += 1;
+            moveCheck.restart();
+            return;
+        }
+        if (p.style && !p.restyled && styleName() !== p.style) {
+            p.restyled = true;
+            c.cycleParagraphStyle(ParagraphStyle.Type[p.style]);
+            moveCheck.restart();
+            return;
+        }
+        let n = p.corrected ? 0 : Math.round((p.targetY - c.textParagraphBounds.y) / linePitch);
+        const s = p.state;
+        // Never split the insert again, and never merge it into the empty line above it.
+        if (n > 0 && s.start === 0)
+            n = 0;
+        if (n < 0)
+            n = -Math.min(-n, Math.max(0, s.deleteFrom > 0 ? s.emptyAbove : s.emptyAbove - 1));
+        if (n !== 0) {
+            p.corrected = true;
+            // Text the move pushed down was pushed by the same error, so it comes back too.
+            p.state = applyMove(s, n, "", SceneController.MergeWithPreviousAction, !p.pushed);
+            p.tries = 0;
+            moveCheck.restart();
+            return;
+        }
+        moveCheck.pending = null;
+        moving = false;
+        contentChanged();
+    }
+
     // On-device search timing over a fixed query mix (dev: ayahBench).
     readonly property var benchQueries: [
         "ذلك الكتاب لا ريب", "قل هو الله احد", "الله لا اله الا هو الحي القيوم",
@@ -276,6 +490,53 @@ Item {
         id: searchTimer
         interval: 250
         onTriggered: bar.runSearch()
+    }
+
+    Timer {
+        id: readDelay
+        interval: 300
+        onTriggered: bar.readPage()
+    }
+
+    Timer {
+        id: readTimeout
+        interval: 1500
+        onTriggered: bar.reading = false
+    }
+
+    Timer {
+        id: moveCheck
+        property var pending: null
+        interval: 150
+        onTriggered: bar.finishMove()
+    }
+
+    Connections {
+        target: bar.active ? bar.sceneView.controller : null
+        function onTextCopied(content) {
+            if (bar.reading)
+                bar.finishRead(content);
+        }
+        function onTextCursorIndexChanged() {
+            bar.updateBlock();
+        }
+        function onRootDocumentLengthChanged() {
+            bar.contentChanged();
+        }
+        function onDocumentContentChanged() {
+            bar.contentChanged();
+        }
+    }
+
+    Connections {
+        target: bar.sceneView
+        function onTextModeChanged() {
+            bar.contentChanged();
+        }
+        function onControllerChanged() {
+            bar.cancelMove();
+            bar.contentChanged();
+        }
     }
 
     // Floating button.
@@ -341,6 +602,63 @@ Item {
             drag.maximumX: bar.width - hadithFab.width
             drag.maximumY: bar.height - hadithFab.height
             onClicked: bar.openPanel("hadith")
+        }
+    }
+
+    // Where a dragged insert will land.
+    Rectangle {
+        readonly property rect r: bar.moveFrom
+            ? bar.sceneView.sceneToView(Qt.rect(bar.moveFrom.bounds.x - 12,
+                                                bar.moveFrom.bounds.y + bar.dragLines * bar.linePitch - 8,
+                                                bar.moveFrom.bounds.width + 24, bar.moveFrom.bounds.height + 16))
+            : Qt.rect(0, 0, 0, 0)
+        visible: !!bar.moveFrom
+        x: r.x
+        y: r.y
+        width: r.width
+        height: r.height
+        color: "transparent"
+        border.color: "black"
+        border.width: 3
+        radius: 8
+    }
+
+    // Handle beside the insert that holds the cursor: drag it up or down to move the insert.
+    Rectangle {
+        width: 76
+        height: 140
+        radius: 38
+        color: "white"
+        border.color: "black"
+        border.width: 3
+        visible: bar.handleShown || !!bar.moveFrom
+        x: Math.min(bar.width - width - 8, bar.blockRect.x + bar.blockRect.width + 10)
+        y: bar.moveFrom ? bar.dragPointerY - height / 2
+                        : bar.blockRect.y + Math.min(bar.blockRect.height, 2 * height) / 2 - height / 2
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 10
+            Repeater {
+                model: 3
+                Rectangle { width: 36; height: 5; radius: 2; color: "black" }
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            anchors.margins: -20
+            preventStealing: true
+            onPressed: (mouse) => bar.beginMove(mapToItem(bar, mouse.x, mouse.y).y)
+            onPositionChanged: (mouse) => bar.dragMove(mapToItem(bar, mouse.x, mouse.y).y)
+            onReleased: (mouse) => bar.endMove(mapToItem(bar, mouse.x, mouse.y).y)
+            onCanceled: bar.cancelMove()
+
+            // Pen presses go to the page unless blocked here.
+            PenInputBlocker {
+                anchors.fill: parent
+                manager: bar.sceneView.penInput.surfaceManager
+            }
         }
     }
 

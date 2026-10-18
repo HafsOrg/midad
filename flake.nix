@@ -74,6 +74,7 @@
                 ./src/hadith/load.ts
                 ./src/hadith/build.ts
                 ./device/qml/AyahBar.qml
+                ./device/qml/move.js
                 ./device/fonts
                 ./device/fonts.conf
                 ./device/guard.sh
@@ -233,6 +234,7 @@
               cp -r ${keyboard}/xovi/. $out/xovi/
               chmod -R u+w $out
               cp ${./device/qml/AyahBar.qml} $out/midad/qml/AyahBar.qml
+              cp ${./device/qml/move.js} $out/midad/qml/move.js
               cp ${./device/fonts}/*.ttf $out/midad/fonts/
               cp ${./device/fonts.conf} $out/midad/fonts.conf
               cp ${./device/guard.sh} $out/midad/guard.sh
