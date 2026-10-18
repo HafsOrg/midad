@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { loadCorpus, loadSearcher, rng, type Ayah } from './helpers.ts'
+import { loadCorpus, loadSearcher } from './helpers.ts'
+import { sample } from './queries.ts'
 import { IMLAI_FIXTURE } from './imlai-fixture.ts'
 
 const corpus = loadCorpus()
 const byKey = new Map(corpus.map((a) => [a.key, a]))
 const { searcher } = loadSearcher()
-const SEED = 42
 
 describe('corpus', () => {
   test('6236 ayat keyed surah:ayah', () => {
@@ -27,45 +27,22 @@ describe('C7 full ayah text, tashkeel stripped -> rank 1', () => {
   })
 })
 
-function snippet(a: Ayah, r: () => number): string {
-  const n = Math.min(a.words.length, 3 + Math.floor(r() * 3))
-  const start = Math.floor(r() * (a.words.length - n + 1))
-  return a.words.slice(start, start + n).join(' ')
-}
-
-const LETTERS = 'ابتثجحخدذرزسشصضطظعغفقكلمنهوي'
-function mutate(s: string, r: () => number): string {
-  const edits = 1 + Math.floor(r() * 2)
-  let c = [...s]
-  for (let e = 0; e < edits; e++) {
-    const i = Math.floor(r() * c.length)
-    const op = Math.floor(r() * 4)
-    if (op === 0) c[i] = LETTERS[Math.floor(r() * LETTERS.length)] // substitute
-    else if (op === 1) c.splice(i, 1) // delete
-    else if (op === 2) c.splice(i, 0, LETTERS[Math.floor(r() * LETTERS.length)]) // insert
-    else if (i + 1 < c.length) [c[i], c[i + 1]] = [c[i + 1], c[i]] // transpose
-  }
-  return c.join('')
-}
-
-function topFiveRate(make: (a: Ayah, r: () => number) => string, n = 2000) {
-  const r = rng(SEED)
+function topFiveRate(typo: boolean) {
   let hit = 0
   const misses: string[] = []
-  for (let i = 0; i < n; i++) {
-    const a = corpus[Math.floor(r() * corpus.length)]
-    const q = make(a, r)
+  const qs = sample(corpus, typo)
+  for (const { source: a, q } of qs) {
     const top = searcher.search(q, 5).map((x) => x.key)
     // identical-text ayat count as the source
     if (top.some((k) => k === a.key || byKey.get(k)!.text === a.text)) hit++
     else misses.push(`${a.key} "${q}" -> ${top.join(',')}`)
   }
-  return { rate: hit / n, misses }
+  return { rate: hit / qs.length, misses }
 }
 
 describe('C8 snippets 3-5 words -> source in top 5', () => {
   test('>= 99% of 2000 (seed 42)', () => {
-    const { rate, misses } = topFiveRate(snippet)
+    const { rate, misses } = topFiveRate(false)
     console.log(`C8: ${(rate * 100).toFixed(2)}%`, misses.slice(0, 8))
     expect(rate).toBeGreaterThanOrEqual(0.99)
   })
@@ -73,7 +50,7 @@ describe('C8 snippets 3-5 words -> source in top 5', () => {
 
 describe('C9 snippets with 1-2 char edits -> source in top 5', () => {
   test('>= 95% of 2000 (seed 42)', () => {
-    const { rate, misses } = topFiveRate((a, r) => mutate(snippet(a, r), r))
+    const { rate, misses } = topFiveRate(true)
     console.log(`C9: ${(rate * 100).toFixed(2)}%`, misses.slice(0, 8))
     expect(rate).toBeGreaterThanOrEqual(0.95)
   })

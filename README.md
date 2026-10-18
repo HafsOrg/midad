@@ -59,3 +59,12 @@ skeleton, `rasm_uthmani` = display/Uthmani skeleton). Both forms are indexed.
 Known limit: a query spanning two ayat (e.g. 55:1-2 typed as one phrase) is not matched as a range.
 
 `bun run src/search/bench.ts` prints host latency per query class.
+
+## Engine comparison (quran-search-engine)
+
+`vendor/quran-search-engine` (gitignored) = https://github.com/adelpro/quran-search-engine at
+`4de9fd08a00bb18e7c9addc00fd0ad0e031d2fba`, v0.3.2. Both engines run behind `src/search/compare/adapters.ts`
+(query in, ranked `surah:ayah` out; its `sura_id`/`aya_id` map 1:1 onto ours, all 6236 ayat).
+`bun src/search/compare/run.ts <ours|qse|qse-exact> <acc|lat>`, then `bun src/search/compare/table.ts`.
+Same seeded queries as the eval tests (`test/search/queries.ts`); extra root/lemma/phonetic fixture in
+`test/search/extras-fixture.ts`, written before either engine ran on it.

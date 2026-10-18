@@ -60,8 +60,22 @@ BeginLayout realBeginLayout()
 extern "C" __attribute__((visibility("default"))) void
 ayahfont_beginLayout(QTextLayout *self) __asm__("_ZN11QTextLayout11beginLayoutEv");
 
+#ifdef AYAHFONT_DEBUG
+#include <cstdio>
+static int debugCalls = 0;
+#endif
+
 extern "C" void ayahfont_beginLayout(QTextLayout *self)
 {
+#ifdef AYAHFONT_DEBUG
+    if (debugCalls < 40) {
+        ++debugCalls;
+        fprintf(stderr, "[ayahfont] call %d self=%p real=%p len=%d\n", debugCalls,
+                static_cast<void *>(self), reinterpret_cast<void *>(realBeginLayout()),
+                static_cast<int>(self->text().size()));
+        fflush(stderr);
+    }
+#endif
     const Category cat = categoryOf(self->text());
     if (cat != Category::None) {
         const QString family = cat == Category::Quran
