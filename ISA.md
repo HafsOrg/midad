@@ -3,9 +3,9 @@ task: "Ayah toolbar with Arabic keyboard and fuzzy search on reMarkable"
 slug: 20261018-031836_rm-ayah-toolbar
 project: rm-ayah-toolbar
 phase: climbing
-progress: 21/23
+progress: 22/25
 started: 2026-10-18T03:18:36+03:00
-updated: 2026-10-18T04:40:00+03:00
+updated: 2026-10-18T04:50:00+03:00
 principal_stated_goal: "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search."
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 4
@@ -81,6 +81,8 @@ Why: the point of the whole thing is the ayah on my page, in my note, staying th
 - [x] C17: The insert can be undone in one step.
 - [x] C18: Anti: typed text already on the page keeps its content and style; each insert is its own paragraph. (Handwriting anchored below the insertion point moves down with the text, as xochitl does for any typed text.)
 - [x] C23: Anti: no general-purpose eval or shell surface ships; the hook accepts only fixed commands (probe, reload of our own bar file, bench).
+- [ ] C24: Inserted ayat keep the QPC font at all four text sizes (Title, Subheading, Subheading2, Paragraph) when the size is changed from the format menu.
+- [x] C25: Anti: no two keys on the Arabic layout look identical in the keyboard's font.
 
 ### F5 · Toolbar
 Why: one tap from any open note, without leaving it.
@@ -147,6 +149,8 @@ Why: this is the principal's daily device with real notes on it.
 - 2026-10-18 04:30: principal: "i can see floating unrelated tashkeel under certain lines when searching." Cause: fixed 96 px result rows clipped a third line, leaving its marks visible. Rows now size to two lines (maximumLineCount 2, no clip), 4 results.
 - 2026-10-18 04:33: principal: "the speed is good, if u can get quick wins fine, but no need for over-engineering." No perf project; C12 threshold refined to the measured range (97–359 ms per query).
 - 2026-10-18 04:36: two bar bugs fixed by test — the 112:1-4 insert came out plain because `textParagraphStyle` lags right after a paste (now set unconditionally on the fresh paragraph); dragging the button panned the page (`preventStealing`).
+- 2026-10-18 04:45: principal: "when i try to edit the font to change the size etc.. the last two will change the font, i want to maintain the font while having the 4 size options." and "we dont have title and subheadings for quran, they're all different sizes for the text anyway." Subheading2/Paragraph use "reMarkable Sans", which is also the UI and keyboard font, and Qt's fallback query carries only family, slant and script, so no fontconfig rule can split them. fonts.conf now gives "reMarkable Sans" the QPC font as its Arabic fallback too: all four sizes keep QPC, and UI/keyboard Arabic is QPC (titles verified to fit).
+- 2026-10-18 04:48: QPC draws isolated ي without dots, so the ي and ى keys looked identical. The standalone ى key is now لا (with لأ لإ لآ); ى moved to a long-press on ي. Search already folds ى into ي.
 
 ## Remaining Work
 
@@ -174,3 +178,4 @@ Why: this is the principal's daily device with real notes on it.
 - C12: bar `lastSearchMs` 319, 359, 100, 97 ms on the tablet. C15: screenshot b1 — earlier inserts present after xochitl restarts and reopen. C16: insert visible ≤ 3 s after tapping إدراج (probe lastInsert).
 - C18: screenshot e2 — 114:1 appended after 94:6 and the plain 112:1-4 paragraph, both unchanged. C19: screenshot drag-cmp — button moves, page doesn't. C20: screenshots b4/c1 — Arabic query, four ranked results in the QPC font.
 - C23: ayahBar.qmd accepts ayahProbe, ayahReload, ayahBench only.
+- C24 (partial): screenshot h1 — Paragraph-size inserts render in QPC with ornaments after the fonts.conf change; Title/Subheading already QPC; Subheading2 shares the Paragraph family but hasn't been viewed. C25: screenshot k2 — one dotless ي key, لا where ى was.
