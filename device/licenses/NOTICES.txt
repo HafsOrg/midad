@@ -1,0 +1,41 @@
+rm-ayah-toolbar: third-party material in this bundle
+=====================================================
+
+This addon has no licence of its own yet (the author has not chosen one).
+The pieces it carries or builds from belong to their authors:
+
+Fonts (installed under ayah-toolbar/fonts/)
+  Amiri Regular and Bold   SIL Open Font License 1.1   https://github.com/aliftype/amiri
+                           licence text: Amiri-OFL.txt
+  Noto Naskh Arabic UI     SIL Open Font License 1.1   https://github.com/notofonts/arabic
+                           licence text: NotoNaskhArabic-OFL.txt
+  KFGQPC Uthmanic Script HAFS v22 (uthmanic_hafs_v22.ttf)
+                           King Fahd Glorious Quran Printing Complex terms, not an open licence:
+                           http://dm.qurancomplex.gov.sa/copyright-2/
+                           Taken from https://github.com/nuqayah/qpc-fonts at
+                           8a4f39d563ea69c994416a1692827e38156c548d
+                           (text-mushafs/UthmanicHafs_V22/uthmanic_hafs_v22.ttf).
+
+Data (built into ayah-toolbar/data/ and ayah-toolbar/qml/)
+  Quran text (quran-hafs-v22.json)
+                           KFGQPC Hafs v22 text from nuqayah/qpc-fonts (same commit as above);
+                           King Fahd Glorious Quran Printing Complex terms apply.
+  Quran search index and surah names (index.json, surahs.json)
+                           Derived from the quran-png bundle (index/words.json, index/surahs.json),
+                           https://github.com/quran-ws/quran-png release artwork-v1.0.0,
+                           file quran-svg-hafs-kfgqpc.tar.gz,
+                           sha256 2bff7bcc1d84b61ee9baf2c356ea554b0a1dd317d6a8145406b5cee998914d17.
+                           Its VERSION.json (quran-png-VERSION.json) says: CC BY 4.0 covers the
+                           decomposition, labels and indexes; the Quranic text and artwork are the
+                           KFGQPC's and not licensed by it. Its LICENSE (quran-png-LICENSE.txt)
+                           is a placeholder that states no terms.
+  Hadith text (hadith.json, hadith-index.json)
+                           Sahih al-Bukhari and Sahih Muslim matns and chapter titles from
+                           ShathaTm/LK-Hadith-Corpus at c45fa64aa40bf1d4a34b9b35359640a583b02881
+                           (no licence stated upstream); Muslim numbering from
+                           fawazahmed0/hadith-api at df57907be35291c91ad6a6691180e22ca9920784,
+                           editions/ara-muslim.min.json (Unlicense, see hadith-api-LICENSE.txt).
+
+Because several of these carry no licence or restrictive terms, the Nix flake fetches
+the upstream sources and builds the data on the installing machine; check the terms
+above before redistributing a built bundle.
