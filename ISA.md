@@ -1,14 +1,11 @@
 ---
-- C35: `nix build` → bundle icd6zwg1…; data and search cores md5 = tablet (asserted in `.#data`); shim checks pass (one export, NEEDED libgcc_s+libc, no Qt GLOB_DAT, GLIBC ≤ 2.34), raw link = hand build e5d9b422.
-- C38: README.md (dae6ab7). C39: packaging/vellum/ayah-toolbar/VELBUILD (67046fb), Vellum `scripts/validate-velbuild.sh` PASS; abuild 3.16 (vbuild-builder image) built ayah-toolbar-0.1.0-r0.apk, 37 files, sha512 matching `.#release`. C40: device/qmd/ayahBar.qmd is loader-only (8822f9b); the broker QMD is dev/ayahBar.qmd.
-- Host-side: `nix flake check` passes; `test/install/run.sh` 44/0 with GNU tools and with busybox.
 task: "Ayah toolbar with Arabic keyboard and fuzzy search on reMarkable"
 slug: 20261018-031836_rm-ayah-toolbar
 project: rm-ayah-toolbar
 phase: climbing
-progress: 35/41
+progress: 38/41
 started: 2026-10-18T03:18:36+03:00
-updated: 2026-10-18T07:55:00+03:00
+updated: 2026-10-18T17:10:00+03:00
 principal_stated_goal: "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search."
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 4
@@ -115,12 +112,12 @@ Why: ayat should keep the Quran font at any size while hadith, the user's own Ar
 Why: anyone with a Paper Pro on xovi (the principal included, after a reset) can install the whole addon in one command, and later through reManager.
 
 - [x] C35: `nix build` in the repo produces the full device bundle — shim cross-compiled for aarch64, keyboard .rcc, fonts, QML and data — laid out as it lands under /home/root, with the data and search cores built inside nix from pinned upstream sources and byte-identical to what the tablet runs today.
-- [ ] C36: `nix run .#install -- root@<ip>` installs the bundle onto a tablet running xovi, swapping files atomically and confirming a healthy restart; running it twice changes nothing.
-- [ ] C37: `nix run .#uninstall -- root@<ip>` removes every installed file and leaves xovi running stock.
+- [x] C36: `nix run .#install -- root@<ip>` installs the bundle onto a tablet running xovi, swapping files atomically and confirming a healthy restart; running it twice changes nothing.
+- [x] C37: `nix run .#uninstall -- root@<ip>` removes every installed file and leaves xovi running stock.
 - [x] C38: The README covers requirements, install, uninstall, how each piece works, data and font sources with licenses, and the firmware it was tested on.
 - [x] C39: A Vellum VELBUILD for the addon exists in the repo, follows Vellum's format, and notes that a person must submit it (no AI-written PR text or co-author trailers).
 - [x] C40: Anti: the shipped QMD carries no dev surfaces (no message-broker probe/reload hooks); those live in a separate dev QMD.
-- [ ] C41: Anti: install and uninstall touch only the files the bundle ships (plus their staging and the guard's parking dir); /home/root/ayah-backups and every xochitl document stay untouched.
+- [x] C41: Anti: install and uninstall touch only the files the bundle ships (plus their staging and the guard's parking dir); /home/root/ayah-backups and every xochitl document stay untouched.
 
 ### F0 · Cross-cutting
 Why: this is the principal's daily device with real notes on it.
@@ -200,6 +197,7 @@ Why: this is the principal's daily device with real notes on it.
   - the shipped shim is the hand build (a byte-identical raw link) with its dead RUNPATH removed by patchelf;
   - guard.sh now runs `systemctl reset-failed xochitl` before each `xovi/start`.
   The tablet then dropped off USB (asleep), so C36, C37 and C41 wait for it.
+- 2026-10-18 17:10: the real-tablet run passed: uninstall, install (shipped), a second install, then `--dev` to put the broker QMD back. Uninstall also cleared the dev leftovers inside ayah-toolbar/ (exp/, shimtest.sh, fonts-shim-test.conf). Two side effects users will see went into the README: a restart with a note open makes xochitl report it "closed unexpectedly", and Arabic is boxes again after uninstalling. Separately, Tesr's first Fatiha block predates the QPC switch and carries U+06DD before each number, which the QPC font draws as an extra empty ornament; current inserts carry no U+06DD.
 
 ## Remaining Work
 
@@ -209,6 +207,7 @@ Why: this is the principal's daily device with real notes on it.
 - [ ] Deploy `ayahBench` (in ayahBar.qmd) at the next restart; it needs one.
 - [x] Read the Worker's quran-search-engine comparison when it lands; port a technique only if it clearly wins. (49ddfdf: ours wins every class but Latin phonetic, where QSE gets 25% vs our 0%; QSE needs ES2022 and runs 225–565 ms p50 on the host, so it stays out)
 - [ ] C21: check pen, eraser and the floating toolbar still behave with the bar loaded.
+- [ ] Old inserts carrying U+06DD (pre-QPC format, e.g. Tesr's first Fatiha block) show a doubled ornament under QPC — re-insert them, or have the shim hide U+06DD; the principal's call.
 
 ## Learning
 
@@ -229,3 +228,9 @@ Why: this is the principal's daily device with real notes on it.
 - C23: ayahBar.qmd accepts ayahProbe, ayahReload, ayahBench only.
 - C26/C27: screenshots hd1/hd2 — حديث panel, "انما الاعمال بالنيات" → Bukhari ١, Muslim ١٩٠٧, Bukhari ٦٩٥٣, ٦٦٨٩; inserted with "(رواه البخاري ١)" in Amiri. C28/C29: `bun run test` H1–H3 (commit 0b5bd75). C30: tablet searchMs 432, first data load ~2.1 s.
 - C24 (partial): screenshot h1 — Paragraph-size inserts render in QPC with ornaments after the fonts.conf change; Title/Subheading already QPC; Subheading2 shares the Paragraph family but hasn't been viewed. C25: screenshot k2 — one dotless ي key, لا where ى was.
+- C35: `nix build` → bundle icd6zwg1…; data and search cores md5 = tablet (asserted in `.#data`); shim checks pass (one export, NEEDED libgcc_s+libc, no Qt GLOB_DAT, GLIBC ≤ 2.34), raw link = hand build e5d9b422.
+- C38: README.md (dae6ab7). C39: packaging/vellum/ayah-toolbar/VELBUILD (67046fb), Vellum `scripts/validate-velbuild.sh` PASS; abuild 3.16 (vbuild-builder image) built ayah-toolbar-0.1.0-r0.apk, 37 files, sha512 matching `.#release`. C40: device/qmd/ayahBar.qmd is loader-only (8822f9b); the broker QMD is dev/ayahBar.qmd.
+- Host-side: `nix flake check` passes; `test/install/run.sh` 44/0 with GNU tools and with busybox.
+- C36: real tablet — `nix run .#install` VERIFIED + SWAP 24 files, guard healthy after 10 s, status "up to date", shim mapped; second run "up to date", xochitl pid 4903 before and after, addon inode/size/mtime unchanged; `--dev` swapped 1 file, healthy after 9 s; screenshot tesr-installed2 (QPC at three sizes, آية/حديث buttons).
+- C37: `nix run .#uninstall` REMOVED 4 paths, healthy after 9 s, pid 4204 without libayahfont.so; 0 addon files left; screenshot tap1 (no bar).
+- C41: inode/size/mtime of every file under /home/root, before uninstall and after each step: outside the addon only 11 xochitl state files changed (rewritten at each start), 0 document files, 6270 files before and after, ayah-backups md5 identical.
