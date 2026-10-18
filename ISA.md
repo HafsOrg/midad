@@ -1,11 +1,14 @@
 ---
+- C35: `nix build` → bundle icd6zwg1…; data and search cores md5 = tablet (asserted in `.#data`); shim checks pass (one export, NEEDED libgcc_s+libc, no Qt GLOB_DAT, GLIBC ≤ 2.34), raw link = hand build e5d9b422.
+- C38: README.md (dae6ab7). C39: packaging/vellum/ayah-toolbar/VELBUILD (67046fb), Vellum `scripts/validate-velbuild.sh` PASS. C40: device/qmd/ayahBar.qmd is loader-only (8822f9b); the broker QMD is dev/ayahBar.qmd.
+- Host-side: `nix flake check` passes; `test/install/run.sh` 44/0 with GNU tools and with busybox.
 task: "Ayah toolbar with Arabic keyboard and fuzzy search on reMarkable"
 slug: 20261018-031836_rm-ayah-toolbar
 project: rm-ayah-toolbar
 phase: climbing
-progress: 31/41
+progress: 35/41
 started: 2026-10-18T03:18:36+03:00
-updated: 2026-10-18T07:25:00+03:00
+updated: 2026-10-18T07:55:00+03:00
 principal_stated_goal: "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search."
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 4
@@ -111,12 +114,12 @@ Why: ayat should keep the Quran font at any size while hadith, the user's own Ar
 ### F8 · Distribution (Nix flake, installer, Vellum/reManager)
 Why: anyone with a Paper Pro on xovi (the principal included, after a reset) can install the whole addon in one command, and later through reManager.
 
-- [ ] C35: `nix build` in the repo produces the full device bundle — shim cross-compiled for aarch64, keyboard .rcc, fonts, QML and data — laid out as it lands under /home/root, with the data and search cores built inside nix from pinned upstream sources and byte-identical to what the tablet runs today.
+- [x] C35: `nix build` in the repo produces the full device bundle — shim cross-compiled for aarch64, keyboard .rcc, fonts, QML and data — laid out as it lands under /home/root, with the data and search cores built inside nix from pinned upstream sources and byte-identical to what the tablet runs today.
 - [ ] C36: `nix run .#install -- root@<ip>` installs the bundle onto a tablet running xovi, swapping files atomically and confirming a healthy restart; running it twice changes nothing.
 - [ ] C37: `nix run .#uninstall -- root@<ip>` removes every installed file and leaves xovi running stock.
-- [ ] C38: The README covers requirements, install, uninstall, how each piece works, data and font sources with licenses, and the firmware it was tested on.
-- [ ] C39: A Vellum VELBUILD for the addon exists in the repo, follows Vellum's format, and notes that a person must submit it (no AI-written PR text or co-author trailers).
-- [ ] C40: Anti: the shipped QMD carries no dev surfaces (no message-broker probe/reload hooks); those live in a separate dev QMD.
+- [x] C38: The README covers requirements, install, uninstall, how each piece works, data and font sources with licenses, and the firmware it was tested on.
+- [x] C39: A Vellum VELBUILD for the addon exists in the repo, follows Vellum's format, and notes that a person must submit it (no AI-written PR text or co-author trailers).
+- [x] C40: Anti: the shipped QMD carries no dev surfaces (no message-broker probe/reload hooks); those live in a separate dev QMD.
 - [ ] C41: Anti: install and uninstall touch only the files the bundle ships (plus their staging and the guard's parking dir); /home/root/ayah-backups and every xochitl document stay untouched.
 
 ### F0 · Cross-cutting
@@ -192,6 +195,11 @@ Why: this is the principal's daily device with real notes on it.
 - 2026-10-18 07:25: licensing — LK-Hadith-Corpus and nuqayah/qpc-fonts carry no license; the quran-png bundle's LICENSE is a placeholder that says to ask before redistributing (its VERSION.json says CC BY 4.0 for indexes; text and artwork under KFGQPC terms); fawazahmed0/hadith-api is Unlicense; Amiri and Noto are OFL. So the flake fetches the upstream sources and builds the data on the installing machine, and nothing derived is committed. A Vellum package has to ship prebuilt data in a release tarball, which is redistribution: the principal decides that, and the repo license, before anything goes public.
 - 2026-10-18 07:25: the shipped QMD drops the message-broker hooks. A tablet without xovi-message-broker would fail to load DeviceSceneView with that import. The broker QMD stays as the dev variant, installed with --dev under the same name so only one bar ever loads.
 - 2026-10-18 07:35: reManager source (internal/vellum/metadata.go, proxy.go) lists packages only from packages.vellum.delivery/packages-metadata.json, plus maintenance commands from remanager.io/remanager-metadata.json, and downloads .apk files from the same host. It has no custom-repo or local-package install. The only way into reManager is a merged recipe in vellum-dev/vellum. Until then the flake installer is the install path, and it lives outside apk's file database.
+- 2026-10-18 07:55: the Worker landed the flake, tools, README and recipe (8822f9b..dae6ab7). I rebuilt them and re-ran the checks. Three differences from the hand-built files, all expected:
+  - ayah-kbd.rcc differs only in the per-file mtimes that rcc format 3 embeds;
+  - the shipped shim is the hand build (a byte-identical raw link) with its dead RUNPATH removed by patchelf;
+  - guard.sh now runs `systemctl reset-failed xochitl` before each `xovi/start`.
+  The tablet then dropped off USB (asleep), so C36, C37 and C41 wait for it.
 
 ## Remaining Work
 
