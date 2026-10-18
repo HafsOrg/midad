@@ -36,7 +36,12 @@ mkdir -p "$PARK"
 for f in "$RB"/ayah* "$SVC"/ayah*; do
   [ -e "$f" ] && mv "$f" "$PARK/"
 done
-p=$(pidof xochitl); [ -n "$p" ] && kill -9 $p && sleep 3
+p=$(pidof xochitl)
+if [ -n "$p" ]; then
+  # shellcheck disable=SC2086 # pidof may list several pids
+  kill -9 $p
+  sleep 3
+fi
 start_xovi
 echo "guard: recovered"
 exit 1
