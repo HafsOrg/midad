@@ -28,7 +28,7 @@ mkdir -p "$PARK"
 for f in "$RB"/ayah* "$SVC"/ayah*; do
   [ -e "$f" ] && mv "$f" "$PARK/"
 done
-pkill -9 xochitl
+p=$(pidof xochitl); [ -n "$p" ] && kill -9 $p && sleep 3
 /home/root/xovi/start
 echo "guard: recovered"
 exit 1

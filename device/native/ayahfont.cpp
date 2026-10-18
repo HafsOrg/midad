@@ -24,19 +24,22 @@ enum class Category { None, Quran, Hadith };
 constexpr char16_t kQuranTag = 0x2061;  // FUNCTION APPLICATION, default-ignorable
 constexpr char16_t kHadithTag = 0x2062; // INVISIBLE TIMES, default-ignorable
 
+// Reads characters with at(), not constData(): constData() on a null string points at
+// QString's shared empty data, a load-time data relocation that would make the shim fail
+// to load into xochitl's non-Qt helper processes, which inherit LD_PRELOAD.
 Category categoryOf(const QString &text)
 {
-    const QChar *s = text.constData();
     const qsizetype n = text.size();
     // A tag may sit after a leading newline or two.
     for (qsizetype i = 0; i < n && i < 4; ++i) {
-        if (s[i].unicode() == kQuranTag)
+        const char16_t c = text.at(i).unicode();
+        if (c == kQuranTag)
             return Category::Quran;
-        if (s[i].unicode() == kHadithTag)
+        if (c == kHadithTag)
             return Category::Hadith;
     }
     for (qsizetype i = 0; i < n; ++i) {
-        const char16_t c = s[i].unicode();
+        const char16_t c = text.at(i).unicode();
         // KFGQPC-only marks: dotless head of khah (sukun), rounded zero, small waw/ya,
         // alef wasla, and the Quranic pause signs.
         if (c == 0x06E1 || c == 0x06DF || c == 0x06E5 || c == 0x06E6 || c == 0x0671

@@ -7,9 +7,10 @@ MODE=${1:-control}
 FONTS=${2:-auto}
 LOG=/tmp/xochitl-shimtest-$MODE-${2:-auto}.log
 PRE=/home/root/xovi/xovi.so
+SO=${3:-/home/root/ayah-toolbar/lib/libayahfont.so}
 FC=/home/root/ayah-toolbar/fonts.conf
 if [ "$MODE" = shim ]; then
-  PRE="$PRE /home/root/ayah-toolbar/lib/libayahfont.so"
+  PRE="$PRE $SO"
   FC=/home/root/ayah-toolbar/fonts-shim-test.conf
 fi
 if [ "$FONTS" = normal ]; then FC=/home/root/ayah-toolbar/fonts.conf; elif [ "$FONTS" = shimfonts ]; then FC=/home/root/ayah-toolbar/fonts-shim-test.conf
@@ -19,13 +20,13 @@ fi
 # a force-kill followed by a quick start made the service core-dump, and xochitl.service
 # reboots the tablet when it fails.
 restore() {
-  pkill -TERM -x xochitl 2>/dev/null
+  p=$(pidof xochitl); [ -n "$p" ] && kill -TERM $p 2>/dev/null
   j=0
   while pidof xochitl > /dev/null && [ $j -lt 20 ]; do
     sleep 1
     j=$((j + 1))
   done
-  pidof xochitl > /dev/null && pkill -9 -x xochitl && sleep 3
+  p=$(pidof xochitl); [ -n "$p" ] && kill -9 $p && sleep 3
   systemctl start xochitl
 }
 trap restore EXIT
