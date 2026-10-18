@@ -15,7 +15,8 @@ Item {
     anchors.fill: parent
 
     property var sceneView: null
-    readonly property bool active: !!sceneView && !!sceneView.controller && sceneView.notePage
+    readonly property bool pdfPage: !!sceneView && !!sceneView.document && sceneView.document.fileType === Document.Pdf
+    readonly property bool active: !!sceneView && !!sceneView.controller && (sceneView.notePage || pdfPage)
     visible: active
     onActiveChanged: contentChanged()
 
@@ -49,19 +50,38 @@ Item {
     property bool openedInTextMode: false
     property int openedCursorIndex: -1
 
-    // Moving inserts up and down the page; move.js plans the edits.
+    // Moving inserts anywhere in the page's text column; move.js plans the edits. Up and down
+    // trade empty lines; sideways is the insert's own right and left margins, which the font
+    // shim reads from invisible characters after its tag.
     readonly property real linePitch: 69.55 // scene units per empty Paragraph line
+    readonly property real minWidth: 200    // narrowest an insert gets, in scene units
     property string pageText: ""            // the page's typed text, as last read
     property bool pageTextFresh: false
     property bool reading: false
+    property bool seekInsert: false         // after the next read, put the cursor in an insert
     property var clipboardBeforeRead: null
     property var block: null                // the insert holding the cursor: {start, end}
-    property var moveFrom: null             // taken when the handle is pressed
+    property var moveFrom: null             // taken when a handle is pressed
     property int dragLines: 0
-    property real dragPointerY: 0
+    property real dragDy: 0                 // where the finger is, before snapping to a line
+    property real dragRight: 0              // the placement being dragged to
+    property real dragLeft: 0
     property bool moving: false
     readonly property bool handleShown: active && sceneView.textMode && !panel.visible && !moving
                                         && !!block && !sceneView.controller.hasSelection
+    readonly property var blockPlacement: block ? Move.placementOf(pageText.slice(block.start, block.end))
+                                                : ({ right: 0, left: 0 })
+    // The text column in scene units. The paragraph bounds xochitl reports keep the column's
+    // left edge and lose the margins from their width; the document's bounds pad the column by
+    // the same amount on each side.
+    readonly property var column: {
+        const c = sceneView ? sceneView.controller : null;
+        if (!c)
+            return { left: 0, width: 0 };
+        const b = c.textParagraphBounds, d = c.rootDocumentBoundingRect;
+        return { left: b.x, width: d.width - 2 * (b.x - d.x) };
+    }
+    // The insert holding the cursor, in view coordinates, margins included.
     readonly property rect blockRect: {
         const c = sceneView ? sceneView.controller : null;
         const tm = sceneView ? sceneView.tileManager : null;
@@ -69,7 +89,8 @@ Item {
             return Qt.rect(0, 0, 0, 0);
         void tm.scale; // map again when the page is zoomed or scrolled
         void tm.center;
-        return sceneView.sceneToView(c.textParagraphBounds);
+        const b = c.textParagraphBounds, p = blockPlacement;
+        return sceneView.sceneToView(Qt.rect(column.left + p.left, b.y, column.width - p.left - p.right, b.height));
     }
 
     function arabicDigits(n) {
@@ -240,7 +261,7 @@ Item {
 
         const c = sceneView.controller;
         // Text mode with focus on the page's typed text, at the remembered cursor or the end.
-        sceneView.moveCursorWithPen(sceneView.viewToScene(Qt.point(bar.width / 2, 40)));
+        enterTextMode(sceneView.viewToScene(Qt.point(bar.width / 2, 40)));
         const len = c.rootDocumentLength;
         const at = (openedInTextMode && openedCursorIndex >= 0 && openedCursorIndex <= len) ? openedCursorIndex : len;
         c.selectTextRange(at, at);
@@ -262,6 +283,41 @@ Item {
         c.selectTextRange(start + text.length, start + text.length);
         lastInsert = { key: isAyah ? s + ":" + a + "-" + b : hadithCitation(r.item),
                        at: at, length: len };
+    }
+
+    // xochitl offers typed text on note pages only and refuses text mode elsewhere. On a PDF page
+    // the bar switches it on itself: the text is kept in the page's annotation file like any
+    // typed text, and xochitl lays it out and loads it back as usual.
+    function enterTextMode(scenePoint) {
+        if (sceneView.notePage) {
+            sceneView.moveCursorWithPen(scenePoint);
+            return;
+        }
+        const c = sceneView.controller;
+        if (!c.hasRootDocument) {
+            c.createRootDocument(ParagraphStyle.Type.Paragraph);
+            // A PDF page holds no typed text but ours, so its column can span the whole page and
+            // inserts can go into the page's margins.
+            const page = sceneView.viewToScene(sceneView.pageBorderRect);
+            if (page.width > 0)
+                c.rootDocumentTextWidth = Math.floor(page.width - 40);
+        }
+        if (!sceneView.textMode) {
+            c.focusRootDocument();
+            sceneView.sceneView.textModeEnabled = true;
+            sceneView.forceActiveFocus();
+            c.setCursorVisible(true, true);
+        }
+        c.setCursorPosition(scenePoint, SceneController.MoveAnchor, SceneController.OverscrollAlwaysAllowed);
+    }
+
+    // The نقل button: text mode, and the cursor into an insert on this page, so its handles show.
+    function startMoving() {
+        if (sceneView.textMode && block)
+            return;
+        seekInsert = true;
+        enterTextMode(sceneView.viewToScene(Qt.point(bar.width / 2, 40)));
+        contentChanged();
     }
 
     // Reads the page's typed text with xochitl's own copy; finishRead puts the clipboard back.
@@ -292,6 +348,12 @@ Item {
         const before = clipboardBeforeRead;
         Qt.callLater(() => { Clipboard.text = before; });
         updateBlock();
+        if (seekInsert) {
+            seekInsert = false;
+            const first = block ? null : Move.firstInsert(pageText);
+            if (first)
+                sceneView.controller.selectTextRange(first.end, first.end);
+        }
     }
 
     function contentChanged() {
@@ -323,52 +385,80 @@ Item {
         return "";
     }
 
-    function beginMove(y) {
+    // which: "move" carries the insert, "width" drags its left edge.
+    function beginMove(x, y, which) {
         if (!handleShown)
             return;
         const c = sceneView.controller;
+        const at = sceneView.viewToScene(Qt.point(x, y));
         moveFrom = {
+            which: which,
             layout: Move.layoutAround(pageText, block.start, block.end, c.textCursorIndex),
+            placement: blockPlacement,
+            column: column,
             style: styleName(),
             bounds: c.textParagraphBounds,
-            pressY: sceneView.viewToScene(Qt.point(0, y)).y
+            pressX: at.x,
+            pressY: at.y
         };
         dragLines = 0;
-        dragPointerY = y;
+        dragDy = 0;
+        dragRight = blockPlacement.right;
+        dragLeft = blockPlacement.left;
     }
 
-    function dragMove(y) {
+    function dragMove(x, y) {
         if (!moveFrom)
             return;
-        dragPointerY = y;
-        const b = moveFrom.bounds;
-        const dy = sceneView.viewToScene(Qt.point(0, y)).y - moveFrom.pressY;
+        const m = moveFrom, at = sceneView.viewToScene(Qt.point(x, y));
+        const dx = Math.round((at.x - m.pressX) / 10) * 10;
+        const w = m.column.width, r = m.placement.right, l = m.placement.left;
+        if (m.which === "width") {
+            dragLeft = Math.max(0, Math.min(w - r - minWidth, l + dx));
+            return;
+        }
+        // The insert keeps its width until it meets the column's edge, then narrows against it.
+        let right = Math.max(0, r - dx), left = Math.max(0, l + dx);
+        if (w - right - left < minWidth) {
+            if (dx < 0)
+                right = w - left - minWidth;
+            else
+                left = w - right - minWidth;
+        }
+        dragRight = right;
+        dragLeft = left;
+        const b = m.bounds;
         // Land where it can be seen: above the keyboard and xochitl's formatting bar when they
         // are open. xochitl reports the keyboard at y = 0, though it sits at the screen's bottom.
         let limit = bar.height;
         if (Qt.inputMethod.visible) {
-            const r = Qt.inputMethod.keyboardRectangle;
-            limit = (r.y > 0 ? bar.mapFromItem(null, 0, r.y).y : bar.height - r.height) - 96;
+            const kb = Qt.inputMethod.keyboardRectangle;
+            limit = (kb.y > 0 ? bar.mapFromItem(null, 0, kb.y).y : bar.height - kb.height) - 96;
         }
         const bottom = sceneView.viewToScene(Qt.point(0, limit - 24)).y;
         const most = Math.max(0, Math.floor((bottom - b.y - b.height) / linePitch));
-        dragLines = Math.max(-moveFrom.layout.emptyAbove, Math.min(most, Math.round(dy / linePitch)));
+        // The outline follows the finger; the insert lands on the nearest line.
+        dragDy = Math.max(-m.layout.emptyAbove * linePitch, Math.min(most * linePitch, at.y - m.pressY));
+        dragLines = Math.round(dragDy / linePitch);
     }
 
-    function endMove(y) {
+    function endMove(x, y) {
         if (!moveFrom)
             return;
-        dragMove(y);
-        const m = moveFrom, k = dragLines;
+        dragMove(x, y);
+        const m = moveFrom, k = dragLines, right = dragRight, left = dragLeft;
         moveFrom = null;
         dragLines = 0;
-        if (k === 0)
+        dragDy = 0;
+        if (k === 0 && right === m.placement.right && left === m.placement.left)
             return;
         moving = true;
         block = null;
         const layout = m.layout;
-        moveCheck.pending = { state: applyMove(layout, k, m.style, SceneController.NoMerge, true),
-                              targetY: m.bounds.y + k * linePitch, pushed: k > layout.emptyBelow && layout.textBelow,
+        const plan = Move.planMoveTo(pageText, layout, k, true, right, left);
+        moveCheck.pending = { state: applyMove(plan, layout, m.style, SceneController.NoMerge),
+                              targetY: m.bounds.y + plan.lines * linePitch,
+                              pushed: plan.lines > layout.emptyBelow && layout.textBelow,
                               controller: sceneView.controller, style: m.style, tries: 0, restyled: false,
                               corrected: false };
         moveCheck.restart();
@@ -377,13 +467,13 @@ Item {
     function cancelMove() {
         moveFrom = null;
         dragLines = 0;
+        dragDy = 0;
     }
 
-    // Runs move.js's plan as one batch of controller calls, merged into one undo step after
-    // the first edit, and returns the layout around the insert afterwards.
-    function applyMove(layout, k, style, firstMerge, keepBelow) {
+    // Runs a move.js plan as one batch of controller calls, merged into one undo step after the
+    // first edit, and returns the layout around the insert afterwards.
+    function applyMove(plan, layout, style, firstMerge) {
         const c = sceneView.controller;
-        const plan = Move.planMove(layout, k, keepBelow);
         const clipboard = Clipboard.text;
         let merge = firstMerge;
         if (plan.lines > 0 && layout.start === 0 && style && style !== "Paragraph") {
@@ -441,7 +531,7 @@ Item {
         if (n !== 0) {
             p.corrected = true;
             // Text the move pushed down was pushed by the same error, so it comes back too.
-            p.state = applyMove(s, n, "", SceneController.MergeWithPreviousAction, !p.pushed);
+            p.state = applyMove(Move.planMove(s, n, !p.pushed), s, "", SceneController.MergeWithPreviousAction);
             p.tries = 0;
             moveCheck.restart();
             return;
@@ -605,36 +695,76 @@ Item {
         }
     }
 
-    // Where a dragged insert will land.
+    // Move button, below the hadith one: brings up the handles of an insert on this page. PDF
+    // pages have no text tool, so there it is the way back to an insert.
     Rectangle {
-        readonly property rect r: bar.moveFrom
-            ? bar.sceneView.sceneToView(Qt.rect(bar.moveFrom.bounds.x - 12,
-                                                bar.moveFrom.bounds.y + bar.dragLines * bar.linePitch - 8,
-                                                bar.moveFrom.bounds.width + 24, bar.moveFrom.bounds.height + 16))
-            : Qt.rect(0, 0, 0, 0)
+        id: moveFab
+        width: 112
+        height: 112
+        radius: 56
+        color: "white"
+        border.color: "black"
+        border.width: 3
+        x: bar.width - width - 36
+        y: Math.round(bar.height * 0.42) + 272
+        visible: !panel.visible
+
+        Text {
+            anchors.centerIn: parent
+            text: "نقل"
+            font.family: bar.uiFont
+            font.pixelSize: 34
+            color: "black"
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            preventStealing: true
+            drag.target: moveFab
+            drag.minimumX: 0
+            drag.minimumY: 0
+            drag.maximumX: bar.width - moveFab.width
+            drag.maximumY: bar.height - moveFab.height
+            onClicked: bar.startMoving()
+        }
+    }
+
+    // Where a dragged insert will land, in view coordinates. A narrower insert wraps to more
+    // lines, so its height is estimated from the width it gets.
+    readonly property rect ghostRect: {
+        if (!moveFrom || !sceneView)
+            return Qt.rect(0, 0, 0, 0);
+        const m = moveFrom;
+        const was = m.column.width - m.placement.left - m.placement.right;
+        const w = m.column.width - dragLeft - dragRight;
+        const h = Math.max(60, m.bounds.height * was / w);
+        return sceneView.sceneToView(Qt.rect(m.column.left + dragLeft, m.bounds.y + dragDy, w, h));
+    }
+
+    Rectangle {
         visible: !!bar.moveFrom
-        x: r.x
-        y: r.y
-        width: r.width
-        height: r.height
+        x: bar.ghostRect.x - 12
+        y: bar.ghostRect.y - 8
+        width: bar.ghostRect.width + 24
+        height: bar.ghostRect.height + 16
         color: "transparent"
         border.color: "black"
         border.width: 3
         radius: 8
     }
 
-    // Handle beside the insert that holds the cursor: drag it up or down to move the insert.
+    // Move handle, at the insert's right edge (where its lines start): drag it anywhere.
     Rectangle {
+        readonly property rect box: bar.moveFrom ? bar.ghostRect : bar.blockRect
         width: 76
         height: 140
         radius: 38
         color: "white"
         border.color: "black"
         border.width: 3
-        visible: bar.handleShown || !!bar.moveFrom
-        x: Math.min(bar.width - width - 8, bar.blockRect.x + bar.blockRect.width + 10)
-        y: bar.moveFrom ? bar.dragPointerY - height / 2
-                        : bar.blockRect.y + Math.min(bar.blockRect.height, 2 * height) / 2 - height / 2
+        visible: bar.moveFrom ? bar.moveFrom.which === "move" : bar.handleShown
+        x: Math.min(bar.width - width - 8, box.x + box.width + 10)
+        y: box.y + Math.min(box.height, 2 * height) / 2 - height / 2
 
         Column {
             anchors.centerIn: parent
@@ -649,12 +779,52 @@ Item {
             anchors.fill: parent
             anchors.margins: -20
             preventStealing: true
-            onPressed: (mouse) => bar.beginMove(mapToItem(bar, mouse.x, mouse.y).y)
-            onPositionChanged: (mouse) => bar.dragMove(mapToItem(bar, mouse.x, mouse.y).y)
-            onReleased: (mouse) => bar.endMove(mapToItem(bar, mouse.x, mouse.y).y)
+            onPressed: (mouse) => { const p = mapToItem(bar, mouse.x, mouse.y); bar.beginMove(p.x, p.y, "move"); }
+            onPositionChanged: (mouse) => { const p = mapToItem(bar, mouse.x, mouse.y); bar.dragMove(p.x, p.y); }
+            onReleased: (mouse) => { const p = mapToItem(bar, mouse.x, mouse.y); bar.endMove(p.x, p.y); }
             onCanceled: bar.cancelMove()
 
             // Pen presses go to the page unless blocked here.
+            PenInputBlocker {
+                anchors.fill: parent
+                manager: bar.sceneView.penInput.surfaceManager
+            }
+        }
+    }
+
+    // Width handle, at the insert's left edge: drag it to make the insert narrower or wider.
+    Rectangle {
+        readonly property rect box: bar.moveFrom ? bar.ghostRect : bar.blockRect
+        width: 52
+        height: 120
+        radius: 26
+        color: "white"
+        border.color: "black"
+        border.width: 3
+        visible: bar.moveFrom ? bar.moveFrom.which === "width" : bar.handleShown
+        // Clear of xochitl's toolbar on the left, which would take the touch.
+        x: Math.max(120, box.x - width - 10)
+        // Clear of xochitl's format menu, which sits beside the paragraph's first line.
+        y: Math.max(box.y + 80, box.y + box.height / 2 - height / 2)
+
+        Row {
+            anchors.centerIn: parent
+            spacing: 10
+            Repeater {
+                model: 2
+                Rectangle { width: 5; height: 44; radius: 2; color: "black" }
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            anchors.margins: -20
+            preventStealing: true
+            onPressed: (mouse) => { const p = mapToItem(bar, mouse.x, mouse.y); bar.beginMove(p.x, p.y, "width"); }
+            onPositionChanged: (mouse) => { const p = mapToItem(bar, mouse.x, mouse.y); bar.dragMove(p.x, p.y); }
+            onReleased: (mouse) => { const p = mapToItem(bar, mouse.x, mouse.y); bar.endMove(p.x, p.y); }
+            onCanceled: bar.cancelMove()
+
             PenInputBlocker {
                 anchors.fill: parent
                 manager: bar.sceneView.penInput.surfaceManager

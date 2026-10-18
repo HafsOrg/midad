@@ -70,5 +70,5 @@ postdeinstall() {
 }
 
 sha512sums="
-5553368dfd487c373436a197828ec77bef9d97cbeb37fcf370208837b5523f600e4f6135f56dd18b57b94cb0a0a4c6eade0ca115a8732140b8c7349fef46dfde  midad-$pkgver-aarch64.tar.gz
+c36df67aa02c0db5757bcc588443dbde1c4044a434a4ffe36af6d8815dd5e7cc82fbb2a15c494876d9693ba8c2ffd5cfa90b0571ffbabefb899db6e9f4d0e15f  midad-$pkgver-aarch64.tar.gz
 "

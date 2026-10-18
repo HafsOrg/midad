@@ -12,12 +12,20 @@
 //           KFGQPC Quran encoding uses (so earlier inserts are recognised too)
 //   Hadith  an invisible U+2062 tag near the start (added by the hadith bar)
 //
+// Placement: xochitl lays a page's text out in one column and offers no way to move a paragraph
+// sideways, but its layout honours Qt's block margins. A tag may be followed by six variation
+// selectors (U+FE00..U+FE0F, invisible): hex digits of the paragraph's right and left margins in
+// scene units, each biased by 2048. After every insert, each block it touched gets the margins its
+// own text names, so placement travels with the text into the file and back on load.
+//
 // Built without linking Qt and with no load-time references to Qt data, so the shim loads cleanly
 // in xochitl's non-Qt helper processes, which inherit LD_PRELOAD; Qt functions bind lazily.
 #include <QtCore/QString>
 #include <QtCore/QStringList>
+#include <QtGui/QTextBlock>
 #include <QtGui/QTextCharFormat>
 #include <QtGui/QTextCursor>
+#include <QtGui/QTextFormat>
 
 #include <dlfcn.h>
 
@@ -51,6 +59,74 @@ Category categoryOf(QStringView text)
             return Category::Quran;
     }
     return Category::None;
+}
+
+struct Placement {
+    bool set;
+    int right;
+    int left;
+};
+
+// The six variation selectors after a tag near the paragraph's start, if they are all there.
+Placement placementOf(QStringView text)
+{
+    const qsizetype n = text.size();
+    for (qsizetype t = 0; t < n && t < 4; ++t) {
+        const char16_t c = text.at(t).unicode();
+        if (c != kQuranTag && c != kHadithTag)
+            continue;
+        if (n < t + 7)
+            return {false, 0, 0};
+        int v = 0;
+        for (qsizetype k = 1; k <= 6; ++k) {
+            const char16_t d = text.at(t + k).unicode();
+            if (d < 0xFE00 || d > 0xFE0F)
+                return {false, 0, 0};
+            v = (v << 4) | (d - 0xFE00);
+        }
+        return {true, (v >> 12) - 2048, (v & 0xFFF) - 2048};
+    }
+    return {false, 0, 0};
+}
+
+void setMargins(const QTextBlock &block, qreal right, qreal left)
+{
+    QTextBlockFormat bf;
+    bf.setRightMargin(right);
+    bf.setLeftMargin(left);
+    QTextCursor(block).mergeBlockFormat(bf);
+}
+
+bool sameMargins(const QTextBlock &a, const QTextBlock &b)
+{
+    const QTextBlockFormat fa = a.blockFormat(), fb = b.blockFormat();
+    return fa.rightMargin() == fb.rightMargin() && fa.leftMargin() == fb.leftMargin();
+}
+
+// Gives every Quran or hadith block in [from, to] the margins its text names, or none. A block
+// split off a placed paragraph inherits its margins in the live document; those are cleared
+// again, so the empty lines a move adds (or text typed into them) don't sit narrowed until the
+// next load.
+void placeBlocks(QTextBlock block, int to)
+{
+    for (; block.isValid() && block.position() <= to; block = block.next()) {
+        const QString text = block.text();
+        const QTextBlockFormat f = block.blockFormat();
+        if (categoryOf(text) != Category::None) {
+            const Placement p = placementOf(text);
+            if (f.rightMargin() != p.right || f.leftMargin() != p.left)
+                setMargins(block, p.right, p.left);
+            continue;
+        }
+        if (f.rightMargin() == 0 && f.leftMargin() == 0)
+            continue;
+        for (const QTextBlock &n : {block.previous(), block.next()}) {
+            if (n.isValid() && placementOf(n.text()).set && sameMargins(block, n)) {
+                setMargins(block, 0, 0);
+                break;
+            }
+        }
+    }
 }
 
 using InsertText = void (*)(QTextCursor *, const QString &);
@@ -117,4 +193,8 @@ extern "C" void ayahfont_insertText(QTextCursor *self, const QString &text)
         }
         start = i + 1;
     }
+
+    // Placement reads each touched block's whole text, so editing the digits alone re-places it.
+    span.setPosition(base);
+    placeBlocks(span.block(), base + static_cast<int>(n));
 }

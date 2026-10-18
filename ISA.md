@@ -3,9 +3,9 @@ task: "Ayah toolbar with Arabic keyboard and fuzzy search on reMarkable"
 slug: 20261018-031836_rm-ayah-toolbar
 project: midad
 phase: climbing
-progress: 48/54
+progress: 52/56
 started: 2026-10-18T03:18:36+03:00
-updated: 2026-10-19T01:42:00+03:00
+updated: 2026-10-19T02:42:00+03:00
 principal_stated_goal: "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search."
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 4
@@ -126,14 +126,16 @@ Why: anyone with a Paper Pro on xovi (the principal included, after a reset) can
 Why: typed text always starts at the top of the page's text column, so an insert can land on my handwriting, and xochitl offers no way to move it ("also we want to make the text objects we add draggable, it seems like there's no good way to this from the ui", 2026-10-19). Then: "this should also work in pdfs and we should change location of the text anywhere and not only up and down" (2026-10-19): my course PDFs carry wide margins for notes, and an ayah belongs next to the passage it explains.
 
 - [x] C46: An inserted ayah or hadith can be dragged on the tablet to a new spot on the page, and it is still there after the note is closed and reopened.
-- [x] C47: With the text tool active and the cursor in an inserted ayah or hadith (a paragraph the font shim treats as one), a drag handle shows beside that paragraph; no handle shows for any other paragraph, or outside text mode.
+- [x] C47: In text mode with the cursor in an inserted ayah or hadith (a paragraph the font shim treats as one), its move and width handles show beside it; no handle shows for any other paragraph, or outside text mode.
 - [x] C48: Dragging the handle n lines down moves the insert n lines down (within one line) through empty lines and past the end of the text; dragging up moves it through empty lines and stops at the text above; with the keyboard open, a drag stops above it.
 - [x] C49: Anti: a move adds or removes only empty lines; every paragraph keeps its text and its paragraph style, the moved insert included.
 - [x] C50: Anti: while there are enough empty lines below the insert, nothing below it moves; past them, the text below moves down by the shortfall only.
 - [x] C51: One undo puts the page back exactly as it was before the move (two when the move splits or joins the page's first paragraph, since xochitl restyles it and the move restyles it back).
 - [x] C52: Anti: reading the page's text for the handle leaves the clipboard holding what it held before.
-- [ ] C53: An insert can be dragged to any spot on the page, sideways as well as up and down, and stays there after the note is closed and reopened.
-- [ ] C54: The ayah and hadith bar works on PDF pages: inserting, and moving an insert anywhere on the page, as on notes.
+- [x] C53: An insert can be dragged to any spot in the page's text column in one motion, sideways as well as up and down (an outline follows the finger; vertical lands on the nearest line), its width set with a second handle, and it stays there after the document is closed and reopened.
+- [x] C54: The ayah and hadith bar works on PDF pages: inserting, and moving an insert anywhere on the page, as on notes; there the column spans the whole page, so inserts reach the margins.
+- [x] C55: Anti: on note pages the bar never changes the text column's width, so the principal's own typed text keeps its layout.
+- [x] C56: Anti: undoing a move restores the insert's layout too, not just its text: no margins are left behind once the placement characters go.
 
 ### F0 · Cross-cutting
 Why: this is the principal's daily device with real notes on it.
@@ -174,6 +176,10 @@ Why: this is the principal's daily device with real notes on it.
 | C50 | probe | bounds of the next paragraph before and after a move | unchanged while space allows | rmhook | Anti |
 | C51 | probe | undo after a move, page text and styles | equal to before | rmhook | Goal |
 | C52 | probe | clipboard text before and after a read | equal | rmhook | Anti |
+| C53 | probe | drag move and width handles on a note and a PDF; reopen; screenshot mid-drag | placement and lines as dragged, kept after reopen | rminput swipe + rmhook + rmshot | Goal |
+| C54 | ui | on a PDF page: bar shown, hadith inserted, narrowed into the margin, moved | insert in the margin, saved in the page file | rmshot + rmhook | Goal |
+| C55 | probe | text column width on a note before and after moves | unchanged | rmhook | Anti |
+| C56 | appearance | ink extents after undoing a placement change | back where the old placement puts it | rmshot + magick | Anti |
 
 ## Decisions
 
@@ -233,6 +239,9 @@ Why: this is the principal's daily device with real notes on it.
   Design: the handle shows when the cursor sits in a paragraph that starts with the ayah or hadith tag. Moving down deletes empty lines just after the insert (merging them into it) and adds the same number at the end of the paragraph above it; moving up does the reverse. The insert's own characters never move, so its style and any handwriting anchored to it come along. Only when the insert is the page's first paragraph does it have to be split, and its style is then restored with one more undo step.
 - 2026-10-19 01:42: up/down moves shipped. `device/qml/move.js` plans the edits as a pure function, property-tested under bun (only newlines removed or added, text and order intact, the text-below rule, never splitting an insert except the page's first paragraph); the bar runs the plan as one merged batch, restores the insert's style when a split or join changed it, then corrects once if the insert landed more than half a line from the outline. Inserts are recognised by the shim's own rule, so pre-tag ayat get a handle too. Device runs on Tesr page 2 covered every case, then put the page back to its 689-character original with the handle itself. Found on the way: an ayah insert takes two undos (C17 reopened), and xochitl reports the keyboard rectangle at y = 0, so the drag limit derives the keyboard's top from its height.
 - 2026-10-19 01:42: the principal then asked for any position and for PDFs. xochitl's text API has no sideways placement, and `enterTextMode` refuses non-note pages ("not a notepage"), so neither comes from the API. Next probe: whether the shim can give one paragraph its own block margins inside xochitl's QTextDocument, which would give sideways placement while inserts stay typed text.
+- 2026-10-19 02:05: both probes passed. A throwaway shim gave ayah paragraphs a 300-unit right margin and hadith a 300-unit left margin: the ayah's ink moved from x 306–1380 to 248–1080 and the hadith's from 266–1379 to 557–1380, so xochitl lays text out with Qt's block margins, applied physically, in scene units. On a test PDF ("midad test PDF", a generated two-page A4 copied in as its own document, content rewritten to the v2 `cPages` format so its pages count as PDF pages), creating the root document, focusing it and setting `textModeEnabled` from the bar put typed text on a PDF page; the page's `.lines` v6 file holds it, and it renders again after a reopen, in the right margin where the column's right edge falls. Plan: the insert carries its horizontal placement as six variation selectors after its tag (hex digits of the right and left margins), the shim applies them as block margins whenever text lands in a tagged paragraph, the handle drags in two dimensions, and the bar switches text on itself on PDF pages.
+- 2026-10-19 02:40: anywhere and PDFs shipped. The principal asked mid-build why the drag wasn't "omni direction like the floating toolbar"; the build already moved both ways, so the outline was changed to follow the finger smoothly and snap to a line only on release. A move carries the whole box and narrows it only against the column's edge; a width handle sets the left edge. Placement edits rewrite the tag with its run, so undo inserts text the shim sees. On PDF pages the bar is active (`document.fileType === Document.Pdf`), switches text on itself, and on first insert widens the page's column to the page (`rootDocumentTextWidth`), since PDFs hold no typed text of the principal's; on notes the column is left alone. Negative margins are clamped by Qt, so the column bounds sideways placement. A نقل button enters text mode and puts the cursor in the page's first insert, since PDF pages have no text tool. Verified on the test PDF (insert, narrow into the margin, move, undo, reopen) and on Tesr (move, two undos back to the 689-character original).
+- 2026-10-19 02:42: no independent second look this round, though the shim now edits block formats inside xochitl's insert path. Why: the edit plans are pure and property-tested with mutants caught; the shim change only adds margins to blocks it already categorizes, with no new exports and no Qt data relocations (flake checks); a startup crash rolls back through guard.sh; and every device case (notes, PDFs, undo, reopen) was surveyed. A review of `placeBlocks` is the first thing to add if the shim grows again.
 
 ## Remaining Work
 
@@ -245,6 +254,9 @@ Why: this is the principal's daily device with real notes on it.
 - [ ] Old inserts carrying U+06DD (pre-QPC format, e.g. Tesr's first Fatiha block) show a doubled ornament under QPC — re-insert them, or have the shim hide U+06DD; the principal's call.
 - [ ] C17: make an ayah insert one undo again — the Subheading switch after the paste is its own step, and `cycleParagraphStyle` takes no merge mode.
 - [ ] The empty line split off a page's first paragraph shows 19 units taller until the note reloads (Qt gives the new line the insert's character format while editing live); undo and reopen show the stored 38.
+- [ ] A new insert on a PDF page lands at the page's full width, over the PDF's text, until it is narrowed; a default width in the margin would save that step, but which margin depends on the PDF.
+- [ ] Vertical placement snaps to lines (69.55 units); finer steps would need a top offset per paragraph, and xochitl's own paragraph spacing may live in the same block property. Not attempted.
+- [ ] The tablet holds "midad test PDF" (uuid 45dbbc98-ff75-4e69-9b8b-83e46ff6e58e) for testing; delete it when the principal says so.
 
 ## Learning
 
@@ -254,6 +266,9 @@ Why: this is the principal's daily device with real notes on it.
 - conjectured: the first injected touch after a restart always lands top-left, so a throwaway tap anywhere is safe; refuted by: on 2026-10-19 it landed where aimed and opened a real document from the grid; learned: the quirk is intermittent, so no tap is throwaway; criterion now: a throwaway tap goes only on a spot that is blank in every state (the library header), and every navigation tap is checked against a fresh screenshot.
 - conjectured: a move's empty lines are invisible, so their style doesn't matter; refuted by: after moving the page's first paragraph, an empty line kept the ayah's Subheading style, and undoing a later move restored it as Paragraph, shifting everything below by 43 units; learned: empty lines carry style and spacing, and xochitl's undo doesn't restore their styles exactly; criterion now: every empty line a move creates is a Paragraph line, and undo is checked by a survey of every paragraph's position, not by its text alone.
 - conjectured: `Qt.inputMethod.keyboardRectangle` gives the keyboard's place on screen; refuted by: xochitl reports (0, 0, 1620, 544), and a drag clamped to it could not move at all; learned: the rectangle's height is right and its position is not; criterion now: the keyboard's top is the screen height minus its height, less xochitl's formatting bar.
+- conjectured: negative block margins would let an insert reach past the text column into the page margin; refuted by: a right margin of −150 left the ayah at the column's edge; learned: Qt clamps block margins at zero, so the column bounds sideways placement; criterion now: on PDF pages the bar widens the column to the page, and on notes placement stays inside the principal's column.
+- conjectured: undoing a placement edit restores the layout, since undo restores the text; refuted by: the undo deleted the placement characters and the ayah stayed narrow, because a deletion never reaches `insertText`; learned: the shim only sees inserts; criterion now: placement edits rewrite the tag together with its run, so their undo inserts text again, and the shim gives an ayah or hadith without a run zero margins.
+- conjectured: a handle beside the insert's left edge can always be dragged; refuted by: with the insert starting at the screen's left, the handle sat at x 8 under xochitl's toolbar, which took the touch; learned: xochitl's left toolbar overlays the scene view; criterion now: handles stay at x ≥ 120.
 
 ## Verification
 
@@ -285,3 +300,7 @@ Why: this is the principal's daily device with real notes on it.
 - C50: hadith at 984.7 and 965.7 before and after moving the ayah down 2 into empty lines; property test's text-below rule.
 - C51: one undo after a 2-line move restored the survey exactly; first-paragraph moves (down 3, up to top) restored S0 after two.
 - C52: clipboard "MIDAD-CLIP-TEST" unchanged after two reads and a move.
+- C53: test PDF: move 120 left + 6 lines down → placement (120, 0); width handle → (120, 980); move → (730, 370), top 377.1 vs 383.5 target; mid-drag screenshot shows the outline following the finger; reopen kept it; Tesr: move → (400, 0) + 2 lines, Subheading kept.
+- C54: test PDF page 2: bar shown with three buttons, «انما الاعمال» → Bukhari 1 inserted, column widened to 1827, narrowed to the margin (view 1165–1553) and moved beside paragraphs 4–6; page 1's ayah found by its page file text and redrawn after reopen.
+- C55: Tesr column 1144 before and after moves (probe); code widens only when it creates a PDF page's text.
+- C56: PDF undo: ayah redrawn with its right edge at ~985 (old placement); Tesr two undos: full width again, survey = original.

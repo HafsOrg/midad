@@ -132,3 +132,89 @@ test('every move keeps the text, moves the insert the planned lines, and holds t
   }
   expect(cases).toBeGreaterThan(1000)
 })
+
+const MoveP = new Function(
+  `${SRC}\n;return { tagIndex, placementOf, placementRun, planPlacement, planMoveTo, layoutAround, isInsert };`,
+)() as {
+  tagIndex(p: string): number
+  placementOf(p: string): { right: number; left: number; run: boolean }
+  placementRun(right: number, left: number): string
+  planPlacement(t: string, start: number, end: number, right: number, left: number): { edit: [number, number, string]; grow: number }
+  planMoveTo(t: string, m: Layout, k: number, keepBelow: boolean, right: number, left: number): Plan
+  layoutAround(t: string, start: number, end: number, cursor: number): Layout
+  isInsert(p: string): boolean
+}
+
+// What a reader sees: tags and placement runs are invisible.
+const visible = (t: string) => t.replace(/[⁡⁢︀-️]/g, '')
+
+describe('placement', () => {
+  test('runs round-trip and stay invisible', () => {
+    for (const [r, l] of [[0, 0], [300, 0], [0, 300], [1144, 0], [-150, 2047], [-2048, 17]]) {
+      const run = MoveP.placementRun(r, l)
+      expect(run).toMatch(/^[︀-️]{6}$/)
+      expect(MoveP.placementOf(`⁡${run}${AYAH.slice(1)}`)).toEqual({ right: r, left: l, run: true })
+    }
+    expect(MoveP.placementOf(AYAH)).toEqual({ right: 0, left: 0, run: false })
+    expect(MoveP.placementOf(`⁡︀︁`)).toEqual({ right: 0, left: 0, run: false })
+  })
+
+  test('every 2D move keeps what a reader sees and lands the planned placement', () => {
+    const r = random(7)
+    const pick = <T,>(xs: T[]) => xs[Math.floor(r() * xs.length)]
+    const LEGACY = 'ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَٰلَمِينَ'
+    const placed = (p: string) => `${p[0]}${MoveP.placementRun(pick([0, 120, 400]), pick([0, 80]))}${p.slice(1)}`
+    let cases = 0
+    for (let n = 0; n < 1200; n++) {
+      const ps = Array.from({ length: 1 + Math.floor(r() * 7) }, () =>
+        r() < 0.4 ? '' : pick([AYAH, HADITH, USER, LEGACY, placed(AYAH), placed(HADITH)]),
+      )
+      const text = ps.join('\n')
+      let pos = 0
+      for (const p of ps) {
+        const start = pos
+        pos += p.length + 1
+        if (!MoveP.isInsert(p)) continue
+        const end = start + p.length
+        const cursor = start + Math.floor(r() * (p.length + 1))
+        const m = MoveP.layoutAround(text, start, end, cursor)
+        const k = pick([-3, -1, 0, 0, 1, 2, 4])
+        const right = pick([0, 0, 150, 333, 600])
+        const left = pick([0, 0, 90, 250])
+        const plan = MoveP.planMoveTo(text, m, k, r() < 0.7, right, left)
+        let t = text
+        let limit = Infinity
+        for (const [from, to, ins] of plan.edits) {
+          expect(to <= limit).toBe(true)
+          const gone = t.slice(from, to)
+          // Only newlines, tags and runs change hands, plus a pre-tag ayah's first letter,
+          // which goes back in right behind its new tag.
+          expect(visible(gone).replace(/\n/g, '')).toBe(visible(ins).replace(/\n/g, ''))
+          t = t.slice(0, from) + ins + t.slice(to)
+          limit = from
+        }
+        cases++
+        expect(nonEmpty(visible(t))).toEqual(nonEmpty(visible(text)))
+        const moved = t.slice(plan.after.start, plan.after.end)
+        expect(visible(moved)).toBe(visible(p))
+        const now = MoveP.placementOf(moved)
+        expect([now.right, now.left]).toEqual([right, left])
+        if (right !== 0 || left !== 0) expect(MoveP.tagIndex(moved)).toBeGreaterThanOrEqual(0)
+        expect(indexAt(t, plan.after.start)).toBe(indexAt(text, start) + plan.lines)
+        expect(MoveP.layoutAround(t, plan.after.start, plan.after.end, plan.after.cursor)).toEqual(plan.after)
+        expect(plan.after.cursor >= plan.after.start && plan.after.cursor <= plan.after.end).toBe(true)
+      }
+    }
+    expect(cases).toBeGreaterThan(800)
+  })
+})
+
+test('firstInsert finds the first ayah or hadith on the page', () => {
+  const F = new Function(`${SRC}\n;return { firstInsert };`)() as { firstInsert(t: string): { start: number; end: number } | null }
+  expect(F.firstInsert('')).toBe(null)
+  expect(F.firstInsert(`${USER}\n\n${USER}`)).toBe(null)
+  const t = `${USER}\n\n${HADITH}\n${AYAH}`
+  const h = t.indexOf('⁢')
+  expect(F.firstInsert(t)).toEqual({ start: h, end: h + HADITH.length })
+  expect(F.firstInsert(AYAH)).toEqual({ start: 0, end: AYAH.length })
+})
