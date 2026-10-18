@@ -1,11 +1,11 @@
 ---
 task: "Ayah toolbar with Arabic keyboard and fuzzy search on reMarkable"
 slug: 20261018-031836_rm-ayah-toolbar
-project: rm-ayah-toolbar
+project: midad
 phase: climbing
-progress: 40/43
+progress: 41/45
 started: 2026-10-18T03:18:36+03:00
-updated: 2026-10-18T20:06:00+03:00
+updated: 2026-10-18T20:33:00+03:00
 principal_stated_goal: "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search."
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 4
@@ -14,7 +14,7 @@ context_sufficient: false
 interview_invoked: false
 ---
 
-# Ayah toolbar for the reMarkable Paper Pro
+# midad: Islamic note-taking extensions for the reMarkable Paper Pro
 
 ## Problem
 
@@ -120,6 +120,8 @@ Why: anyone with a Paper Pro on xovi (the principal included, after a reset) can
 - [x] C41: Anti: install and uninstall touch only the files the bundle ships (plus their staging and the guard's parking dir); /home/root/ayah-backups and every xochitl document stay untouched.
 - [x] C42: The README opens with real tablet screenshots: a note holding an ayah in the QPC font and a hadith in Amiri, then the ayah and hadith panels, each with a query, ranked results and the Arabic keyboard.
 - [x] C43: Anti: no preview shows the principal's own documents, file names or other personal data, and the image files carry no metadata; every shot comes from the test note.
+- [x] C44: The product is named midad everywhere: GitHub repo HafsOrg/midad, README and flake description in the principal's words, tarball midad-<v>-aarch64.tar.gz, Vellum package midad, tablet folder /home/root/midad, and midad.qmd, midad-kbd.rcc and midad.conf in xovi's shared folders; no tracked file outside this ISA's history keeps the old product name.
+- [ ] C45: Anti: the principal's tablet ends the rename with exactly one install, the midad one: no ayah-toolbar folder, ayahBar.qmd, ayah-kbd.rcc or ayah-toolbar.conf left, xochitl healthy with the shim loaded from /home/root/midad, and /home/root/ayah-backups untouched.
 
 ### F0 · Cross-cutting
 Why: this is the principal's daily device with real notes on it.
@@ -201,6 +203,7 @@ Why: this is the principal's daily device with real notes on it.
   The tablet then dropped off USB (asleep), so C36, C37 and C41 wait for it.
 - 2026-10-18 17:10: the real-tablet run passed: uninstall, install (shipped), a second install, then `--dev` to put the broker QMD back. Uninstall also cleared the dev leftovers inside ayah-toolbar/ (exp/, shimtest.sh, fonts-shim-test.conf). Two side effects users will see went into the README: a restart with a note open makes xochitl report it "closed unexpectedly", and Arabic is boxes again after uninstalling. Separately, Tesr's first Fatiha block predates the QPC switch and carries U+06DD before each number, which the QPC font draws as an extra empty ornament; current inserts carry no U+06DD.
 - 2026-10-18 20:06: README previews are three shots from Tesr page 2, the blank page the principal added: the page after two inserts, then the ayah and hadith panels mid-search. The keyboard shows in both panel shots, so it gets no shot of its own. Images are 16-level grayscale PNGs (49–86 KB); the panels are scaled to 1080 px wide for a two-column table.
+- 2026-10-18 20:33: pushed to the principal's GitHub org HafsOrg (one member) as a private repo, since no license is chosen yet. Origin uses ssh: the global git credential helper points at a gh store path that no longer exists. Then renamed to midad everywhere; the principal chose the name and the scope, and the description is the principal's line. Component names (AyahBar.qml, libayahfont.so, ayahProbe…) stay, since they name parts rather than the product. On the tablet, the pre-rename uninstaller built from ee032ec removes the old install before midad installs fresh, so no migration code ships.
 
 ## Remaining Work
 
@@ -239,3 +242,4 @@ Why: this is the principal's daily device with real notes on it.
 - C41: inode/size/mtime of every file under /home/root, before uninstall and after each step: outside the addon only 11 xochitl state files changed (rewritten at each start), 0 document files, 6270 files before and after, ayah-backups md5 identical.
 - C42: docs/note.png, docs/ayah-search.png, docs/hadith-search.png, shot on Tesr page 2 ("الحي القيوم" → 2:255 inserted, "انما الاعمال بالنيات" → Bukhari 1 inserted); `marked@14.1.4 --gfm` renders the hero `<img>` and a `<table>` with both panels.
 - C43: all three viewed: only Tesr page 2, the panels, the keyboard and stock toolbars; each PNG holds only IHDR/IDAT/IEND chunks.
+- C44: commits 3860a2c, 3d79a8c; `nix flake check` passes; install suite 44/0 with GNU and busybox; `bun run test` 38/0 (= baseline); Vellum lint `PASS: midad`; `gh repo view` → midad, PRIVATE; old-name search over tracked files (excluding ISA.md) empty.
