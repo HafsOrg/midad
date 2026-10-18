@@ -3,7 +3,4 @@
     <qresource prefix="/misc/keyboards/ar_SA">
         <file alias="keyboard_layout.json">keyboard/ar_SA/keyboard_layout.json</file>
     </qresource>
-    <qresource prefix="/ayah/fonts">
-        <file alias="NotoNaskhArabicUI.ttf">fonts/NotoNaskhArabicUI.ttf</file>
-    </qresource>
 </RCC>
