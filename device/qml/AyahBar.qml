@@ -67,8 +67,14 @@ Item {
     property real dragRight: 0              // the placement being dragged to
     property real dragLeft: 0
     property bool moving: false
-    readonly property bool handleShown: active && sceneView.textMode && !panel.visible && !moving
-                                        && !!block && !sceneView.controller.hasSelection
+    // xochitl pins handwriting to typed text: strokes below the text follow its end, strokes over
+    // it follow a line, and strokes pinned to a line that is deleted are deleted with it. A move
+    // trades and rewrites lines, so on a page with handwriting it could carry the handwriting
+    // along or erase it; there the handles stay hidden.
+    readonly property bool movable: active && !sceneView.controller.hasAnnotations
+    readonly property bool handleShown: movable && sceneView.textMode && !panel.visible && !moving && !!block
+                                        && !sceneView.controller.hasSelection
+                                        && !sceneView.controller.hasPreliminaryLineBreaks
     readonly property var blockPlacement: block ? Move.placementOf(pageText.slice(block.start, block.end))
                                                 : ({ right: 0, left: 0 })
     // The text column in scene units. The paragraph bounds xochitl reports keep the column's
@@ -707,7 +713,7 @@ Item {
         border.width: 3
         x: bar.width - width - 36
         y: Math.round(bar.height * 0.42) + 272
-        visible: !panel.visible
+        visible: !panel.visible && bar.movable
 
         Text {
             anchors.centerIn: parent
