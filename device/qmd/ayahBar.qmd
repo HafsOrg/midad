@@ -1,13 +1,7 @@
 ; rm-ayah-toolbar: load the ayah bar (QML on the tablet) into the open document's scene view.
-; The bar lives in /home/root/ayah-toolbar/qml/AyahBar.qml, so it can change without a restart:
-;   ayahProbe  -> JSON state of the loader and bar (read-only)
-;   ayahReload -> reload AyahBar.qml from disk
-;   ayahBench  -> time the bar's fixed search query mix on the tablet
-; Driven from the root-only xovi FIFO: echo '>uayahReload:' > /run/xovi-mb
+; The bar itself lives in /home/root/ayah-toolbar/qml/AyahBar.qml.
 
 AFFECT /qml/device/view/documentview/DeviceSceneView.qml
-    IMPORT net.asivery.XoviMessageBroker 2.0
-
     TRAVERSE ?#root
         LOCATE AFTER ALL
         INSERT {
@@ -15,43 +9,8 @@ AFFECT /qml/device/view/documentview/DeviceSceneView.qml
                 id: ayahBarLoader
                 anchors.fill: parent
                 z: 1000
-                property int generation: 0
-                source: "file:///home/root/ayah-toolbar/qml/AyahBar.qml?g=" + generation
+                source: "file:///home/root/ayah-toolbar/qml/AyahBar.qml"
                 onLoaded: item.sceneView = root
-            }
-
-            XoviMessageBroker {
-                id: ayahBarBroker
-                listeningFor: ["ayahProbe", "ayahReload", "ayahBench"]
-
-                function onSignalReceived(sgn, message) {
-                    try {
-                        if (sgn === "ayahBench")
-                            return ayahBarLoader.item ? ayahBarLoader.item.bench() : "no bar";
-                        if (sgn === "ayahReload") {
-                            ayahBarLoader.generation += 1;
-                            return "reloading " + ayahBarLoader.generation;
-                        }
-                        if (sgn === "ayahProbe") {
-                            const b = ayahBarLoader.item;
-                            return JSON.stringify({
-                                status: ayahBarLoader.status,
-                                active: b ? b.active : null,
-                                ready: b ? b.ready : null,
-                                loadError: b ? b.loadError : null,
-                                results: b ? b.results.length : null,
-                                selected: b ? b.selected : null,
-                                span: b ? b.span : null,
-                                searchMs: b ? b.lastSearchMs : null,
-                                lastInsert: b ? b.lastInsert : null,
-                                textMode: root.textMode
-                            });
-                        }
-                        return "ERR unknown signal";
-                    } catch (e) {
-                        return "ERR " + e;
-                    }
-                }
             }
         }
     END TRAVERSE
