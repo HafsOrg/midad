@@ -174,7 +174,7 @@ Why: this is the principal's daily device with real notes on it.
 - [ ] Restore the user's clipboard text after an insert — the bar overwrites it today.
 - [ ] Hadith insertion through the same bar — out of scope for this run.
 - [ ] Deploy `ayahBench` (in ayahBar.qmd) at the next restart; it needs one.
-- [ ] Read the Worker's quran-search-engine comparison when it lands; port a technique only if it clearly wins.
+- [x] Read the Worker's quran-search-engine comparison when it lands; port a technique only if it clearly wins. (49ddfdf: ours wins every class but Latin phonetic, where QSE gets 25% vs our 0%; QSE needs ES2022 and runs 225–565 ms p50 on the host, so it stays out)
 - [ ] C21: check pen, eraser and the floating toolbar still behave with the bar loaded.
 
 ## Learning
