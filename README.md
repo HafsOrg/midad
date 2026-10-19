@@ -3,8 +3,8 @@
 midad is a collection of extensions for the reMarkable Paper Pro that enables Islamic note-taking. (مداد is the ink scholars write with.) It adds:
 
 - an **Arabic keyboard** layout in the stock on-screen keyboard;
-- a **floating search bar** in notes and PDFs: type a few words of an ayah or a hadith the way you remember them (no tashkeel, wrong hamzas, a typo or two), tap the result, and it lands in your note as typed text;
-- **handles** on each insert, to drag it anywhere on the page and set its width, for example into a PDF's margin beside the passage it explains;
+- a **floating search bar** in notes and PDFs: type a few words of an ayah or a hadith the way you remember them (no tashkeel, wrong hamzas, a typo or two), tap the result, and it lands on your page;
+- **inserts you can move**: tap one with a finger, then drag it anywhere on the page with a finger or the pen, set its width and size, or remove it, for example into a PDF's margin beside the passage it explains. Your handwriting never moves with it, and the pen writes over it like over the page;
 - **Arabic fonts**: the KFGQPC Hafs Quran font for ayat, Amiri for hadith and your own Arabic, so Arabic text stops rendering as boxes.
 
 It covers the whole Quran (6,236 ayat) and Sahih al-Bukhari and Sahih Muslim (about 13,800 matns). Everything runs on the tablet, offline.
@@ -34,7 +34,7 @@ The installer checks that it is talking to a Paper Pro on OS 3.26 with xovi, upl
 
 ```sh
 nix run .#status                       # read-only: installed? which files differ? is the shim loaded?
-nix run .#uninstall                    # removes everything, restarts xochitl, checks the shim is gone
+nix run .#uninstall                    # removes the addon (your inserts stay), restarts xochitl, checks the shim is gone
 nix run .#install -- --dev             # dev variant, see Development
 nix run .#install -- --force           # skip the OS version check (other firmware is untested)
 ```
@@ -46,29 +46,28 @@ nix run .#install -- --force           # skip the OS version check (other firmwa
 Everything lives under `/home/root`:
 
 ```
-midad/qml/       AyahBar.qml, search.js, hadith-search.js, move.js
+midad/qml/       AyahBar.qml, search.js, hadith-search.js, layer.js
 midad/data/      index.json, quran-hafs-v22.json, surahs.json, hadith.json, hadith-index.json
 midad/fonts/     Amiri, Noto Naskh Arabic UI, KFGQPC Hafs v22
 midad/fonts.conf, guard.sh, lib/libayahfont.so, licenses/, manifest
 xovi/exthome/qt-resource-rebuilder/midad.qmd, midad-kbd.rcc
 xovi/services/xochitl.service/midad.conf
+.local/share/midad/layer.ini     your inserts (see The midad layer)
 ```
 
-`manifest` records the version and the sha256 of every file; the installer and `status` compare against it.
+`manifest` records the version and the sha256 of every file; the installer and `status` compare against it. `layer.ini` is not in it: it holds your inserts, so installing, updating and uninstalling leave it alone.
 
 ## How it works
 
 **Keyboard.** xochitl's on-screen keyboard reads its layouts from `:/misc/keyboards/<code>/keyboard_layout.json` inside its Qt resources. `midad-kbd.rcc` carries an `ar_SA` layout there; qt-resource-rebuilder merges it in at startup, and "Arabic" appears in the stock language list. No xochitl code is patched.
 
-**Search bar.** `midad.qmd` is a qt-resource-rebuilder patch for the note editor's scene view. It inserts a single `Loader` that loads `/home/root/midad/qml/AyahBar.qml`, a floating button and panel. The bar searches with `search.js` and `hadith-search.js` (a trigram index with fuzzy matching) over the JSON files in `data/`, and inserts the chosen text at the cursor, or at the end of the page's text, as its own paragraph.
+**Search bar.** `midad.qmd` is a qt-resource-rebuilder patch for the note editor's scene view. It inserts a single `Loader` that loads `/home/root/midad/qml/AyahBar.qml`, a floating button and panel. The bar searches with `search.js` and `hadith-search.js` (a trigram index with fuzzy matching) over the JSON files in `data/`, and adds the chosen text to the midad layer.
 
-**Moving inserts.** xochitl gives each page one column of typed text that starts at the top, and has no way to move it. Put the cursor in an inserted ayah or hadith (right after an insert it is already there; otherwise tap the نقل button, or use the text tool) and two handles appear: the move handle on the insert's right edge, where its lines start, and the width handle on its left edge. Drag the move handle in any direction: an outline follows your finger, and the insert lands on the nearest line. Up and down, the bar trades the empty lines just below the insert for empty lines above it, so text further down stays put while there is room. Sideways, the insert gets its own right and left margins, which the shim lays out (see Shim); it keeps its width until it meets the column's edge, then narrows against it. Drag the width handle to make it narrower or wider. Moving is off on pages with handwriting: xochitl pins strokes to typed text, so a move there would carry your handwriting along with the text, and a stroke pinned to a line the move removes would be deleted. The insert's own characters, style and any handwriting anchored to them come along. `move.js` plans these edits (`bun test test/move` checks them), and one undo reverses a move. Two exceptions take a second undo: moving the page's first paragraph down, and moving an insert up to the page's first line, because xochitl changes the paragraph's style there and the bar changes it back.
-
-**PDFs.** xochitl only offers typed text on note pages. On a PDF page the bar switches text on itself, and the first time it inserts on a page it widens that page's text column to the whole page (a PDF page holds no typed text of yours), so inserts can go into the margins. The text is stored in the page's annotation file like any typed text, and xochitl lays it out and loads it back as usual. The sideways placement is the shim's work, so a device without midad shows the inserts at full width.
+**The midad layer.** Ayat and hadith are not typed into the page. xochitl pins handwriting to a page's typed text (strokes below the text follow its end, strokes over it are anchored to its characters), so moving typed text would drag your handwriting along, or delete strokes anchored to what it removed. Instead the bar draws each insert itself, over the page, and keeps it in `/home/root/.local/share/midad/layer.ini`: one line per document, holding each page's inserts with their text, place, width and size in page units, so they stay put when you zoom or scroll. The file is written through Qt's settings store (a temporary file, then a rename), and the bar checks each write in the file; a notice shows if one fails. A new insert lands near the top of the page in view, below what is already there when there is room, and is selected. Tap an insert with a finger to select it. Selected, it follows a finger or the pen wherever you drag it on the page, the handle on its left edge sets its width (its right edge, where the lines start, stays), − and + step its size, حذف removes it, and تم, tapping elsewhere, turning the page or opening a search panel lets it go. Unselected inserts sit under xochitl's pen surface, so the pen writes over them as over the page, and touches pass through for scrolling and page turns. Inserts work the same on PDF pages, margins included. `layer.js` holds the layer's logic (`bun test test/layer` checks it). What the layer gives up: xochitl does not know about it, so inserts are not in exported PDFs, page thumbnails or the reMarkable cloud, and xochitl's undo does not cover them.
 
 **Fonts.** `midad.conf` is a systemd drop-in that xovi copies into xochitl's service. It points `FONTCONFIG_FILE` at `fonts.conf`, which adds our font directory and makes Amiri the Arabic fallback for the families xochitl uses. That gives every Arabic character a glyph.
 
-**Shim.** xochitl has one font family per paragraph style, so ayat and hadith cannot get different fonts from fontconfig alone. `libayahfont.so` is loaded with `LD_PRELOAD` (after xovi, from the same drop-in) and interposes `QTextCursor::insertText`. The bar puts an invisible tag character at the start of what it inserts: U+2061 for an ayah, U+2062 for a hadith. After xochitl inserts a span, the shim looks for the tag (ayat are also recognised by marks only the KFGQPC encoding uses) and sets that span's font family: `kfgqpc_hafs_uthmanic_script` for ayat, `Amiri` for hadith. Sizes and styles stay as xochitl set them. It also lays out each insert's placement: six invisible variation selectors after the tag hold the paragraph's right and left margins, and after every insert the shim gives each paragraph it touched those margins (xochitl lays text out with Qt's block margins), so the placement is saved with the text. The shim does not link Qt, so it loads harmlessly into xochitl's helper processes.
+**Shim.** Earlier versions of the bar typed inserts into the page, and the shim keeps those in their fonts. xochitl has one font family per paragraph style, so ayat and hadith cannot get different fonts from fontconfig alone. `libayahfont.so` is loaded with `LD_PRELOAD` (after xovi, from the same drop-in) and interposes `QTextCursor::insertText`. Those inserts start with an invisible tag character: U+2061 for an ayah, U+2062 for a hadith. After xochitl inserts a span, the shim looks for the tag (ayat are also recognised by marks only the KFGQPC encoding uses) and sets that span's font family: `kfgqpc_hafs_uthmanic_script` for ayat, `Amiri` for hadith. Sizes and styles stay as xochitl set them. It also keeps the sideways placement those versions gave an insert: six invisible variation selectors after the tag hold the paragraph's right and left margins, and after every insert the shim gives each paragraph it touched those margins (xochitl lays text out with Qt's block margins). The shim does not link Qt, so it loads harmlessly into xochitl's helper processes.
 
 ## Sources, fonts and licenses
 
@@ -96,7 +95,8 @@ Because several of these carry no licence or restrictive terms, do not redistrib
 - **The service reboots the tablet after repeated failed starts.** The guard and the uninstaller run `systemctl reset-failed xochitl` before each `xovi/start` for this reason. If you restart by hand a few times in a row, run it yourself first.
 - **"hashtab missing".** Run `/home/root/xovi/rebuild_hashtable` on the tablet (needed after an OS update too).
 - **"cannot reach … over ssh".** The tools use `ssh -o BatchMode=yes`, so the key must work without a password prompt. Check the cable or Wi-Fi address.
-- The installer touches only the files it ships and never your documents.
+- **Inserts are missing from an exported PDF, a thumbnail or the cloud.** They live in the midad layer on the tablet, not in xochitl's page files (see How it works). Uninstalling keeps `layer.ini`, and installing again shows them again.
+- The installer touches only the files it ships, never your documents or your midad layer.
 
 ## Install through reManager or Vellum
 
@@ -114,7 +114,7 @@ Host tooling is bun/TypeScript or shell. `nix develop` gives bun, the aarch64 cr
 nix flake check                 # shellcheck on the busybox scripts that run on the tablet
 test/install/run.sh             # installer, uninstaller and status against a fake tablet
 MIDAD_TEST_BUSYBOX=1 test/install/run.sh   # same, with a busybox-only PATH on the "tablet" side
-bun test                        # search evals
+bun test                        # search evals and the midad layer
 ```
 
 `test/install/run.sh` runs the tools against a temp directory with stub `systemctl`, `journalctl` and `pidof`. The `MIDAD_SSH`, `MIDAD_HOME`, `MIDAD_TMP`, `MIDAD_PROC`, `MIDAD_STAGE`, `MIDAD_POLL`, `MIDAD_GUARD_TIMEOUT`, `MIDAD_DTMODEL` and `MIDAD_OSREL` variables exist only for it; leave them unset on real use. It cannot prove xochitl itself behaves; that needs a tablet.

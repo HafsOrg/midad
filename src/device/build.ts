@@ -1,5 +1,5 @@
 // Assemble the tablet tree in dist/device/midad/ (copied to /home/root/midad/):
-//   qml/AyahBar.qml, qml/search.js, qml/move.js  the bar, the search core and the move planner
+//   qml/AyahBar.qml, qml/search.js, qml/layer.js  the bar, the search core and the midad layer
 //   data/index.json                           search index
 //   data/quran-hafs-v22.json                  ayah text in the KFGQPC v22 encoding
 //   data/surahs.json                          [{ ar, n }] per surah
@@ -33,7 +33,7 @@ writeFileSync(new URL('data/surahs.json', OUT), JSON.stringify(meta.map((s) => (
 cpSync(at('dist/search/index.json'), new URL('data/index.json', OUT))
 cpSync(at('dist/search/search.js'), new URL('qml/search.js', OUT))
 cpSync(at('device/qml/AyahBar.qml'), new URL('qml/AyahBar.qml', OUT))
-cpSync(at('device/qml/move.js'), new URL('qml/move.js', OUT))
+cpSync(at('device/qml/layer.js'), new URL('qml/layer.js', OUT))
 cpSync(at('device/fonts/'), new URL('fonts/', OUT), { recursive: true })
 cpSync(at('device/fonts.conf'), new URL('fonts.conf', OUT))
 cpSync(at('device/guard.sh'), new URL('guard.sh', OUT))

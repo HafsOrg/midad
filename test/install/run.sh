@@ -15,19 +15,21 @@ BUNDLE=$(nix build .#bundle --no-link --print-out-paths 2>/dev/null)
 
 F=$(mktemp -d)
 XP=
-trap 'kill "$XP" 2>/dev/null; chmod -R u+w "$F"; rm -rf "$F"' EXIT
+# guard.sh may already have killed the fake xochitl (pidof answers with $XP).
+trap 'kill "$XP" 2>/dev/null || true; chmod -R u+w "$F"; rm -rf "$F"' EXIT
 export F
 H=$F/home/root
 sleep 1000 & XP=$!
 export XP
 mkdir -p "$F/bin" "$F/tmp" "$F/proc/$XP" \
   "$H/xovi/extensions.d" "$H/xovi/exthome/qt-resource-rebuilder" "$H/xovi/services/xochitl.service" \
-  "$H/ayah-backups" "$H/.local/share/remarkable/xochitl"
+  "$H/ayah-backups" "$H/.local/share/remarkable/xochitl" "$H/.local/share/midad"
 : > "$H/xovi/xovi.so"
 : > "$H/xovi/extensions.d/qt-resource-rebuilder.so"
 : > "$H/xovi/exthome/qt-resource-rebuilder/hashtab"
 echo "precious" > "$H/ayah-backups/note.bak"
 echo "precious" > "$H/.local/share/remarkable/xochitl/doc.metadata"
+echo "precious" > "$H/.local/share/midad/layer.ini"
 printf 'reMarkable Ferrari\0' > "$F/model"
 printf 'IMG_VERSION="3.26.0.68"\n' > "$F/os-release"
 
@@ -164,6 +166,7 @@ check "no restart for the no-op" test "$(starts)" = $((n + 1))
 echo "== untouched data"
 check "ayah-backups untouched" test "$(cat "$H/ayah-backups/note.bak")" = precious
 check "xochitl documents untouched" test "$(cat "$H/.local/share/remarkable/xochitl/doc.metadata")" = precious
+check "midad layer untouched" test "$(cat "$H/.local/share/midad/layer.ini")" = precious
 check "no script mentions ayah-backups" bash -c "! grep -rn 'ayah-backups' nix device flake.nix"
 
 echo

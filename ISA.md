@@ -3,9 +3,9 @@ task: "Ayah toolbar with Arabic keyboard and fuzzy search on reMarkable"
 slug: 20261018-031836_rm-ayah-toolbar
 project: midad
 phase: climbing
-progress: 53/58
+progress: 52/55
 started: 2026-10-18T03:18:36+03:00
-updated: 2026-10-19T02:56:00+03:00
+updated: 2026-10-19T03:58:00+03:00
 principal_stated_goal: "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search."
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 4
@@ -73,12 +73,12 @@ Why: I type ayat from memory, in imla'i spelling and with mistakes, and still ne
 ### F4 · Insert into the open note
 Why: the point of the whole thing is the ayah on my page, in my note, staying there.
 
-- [x] C13: A selected ayah appears in the open test note as typed text in the KFGQPC Uthmanic HAFS v22 font (from nuqayah/qpc-fonts) with its own v22 text, ornamented ayah numbers included, and reads correctly. (refined twice on 2026-10-18: quran-png images → Amiri Quran text → QPC v22 text, see Decisions)
+- [x] C13: A selected ayah appears on the open page in the KFGQPC Uthmanic HAFS v22 font (from nuqayah/qpc-fonts) with its own v22 text, ornamented ayah numbers included, and reads correctly. (refined twice on 2026-10-18: quran-png images → Amiri Quran text → QPC v22 text, see Decisions; and on 2026-10-19 03:55: drawn in the midad layer rather than typed)
 - [x] C14: A selected range (e.g. 1:1-7) inserts in order.
 - [x] C15: The insert persists after closing and reopening the note.
 - [x] C16: An insert of a ≤ 2-line ayah finishes in ≤ 10 s.
-- [ ] C17: The insert can be undone in one step. (reopened 2026-10-19: an ayah insert now takes two undos, the paste and then its Subheading switch; a hadith insert takes one)
-- [x] C18: Anti: typed text already on the page keeps its content and style; each insert is its own paragraph. (Handwriting anchored below the insertion point moves down with the text, as xochitl does for any typed text.)
+- [x] C17: A new insert can be taken back in one step: it comes in selected, and حذف removes it. (refined 2026-10-19 03:55: layer inserts are outside xochitl's undo; the two-undo typed insert it was reopened for no longer exists)
+- [x] C18: Anti: typed text already on the page keeps its content and style. (refined 2026-10-19 03:55: inserts add no typed text at all, see C55)
 - [x] C23: Anti: no general-purpose eval or shell surface ships; the hook accepts only fixed commands (probe, reload of our own bar file, bench).
 - [ ] C24: [SUPERSEDED — principal chose the size split, see Decisions 05:45] Inserted ayat keep the QPC font at all four text sizes (Title, Subheading, Subheading2, Paragraph) when the size is changed from the format menu.
 - [x] C25: Anti: no two keys on the Arabic layout look identical in the keyboard's font.
@@ -125,19 +125,27 @@ Why: anyone with a Paper Pro on xovi (the principal included, after a reset) can
 ### F9 · Draggable inserts
 Why: typed text always starts at the top of the page's text column, so an insert can land on my handwriting, and xochitl offers no way to move it ("also we want to make the text objects we add draggable, it seems like there's no good way to this from the ui", 2026-10-19). Then: "this should also work in pdfs and we should change location of the text anywhere and not only up and down" (2026-10-19): my course PDFs carry wide margins for notes, and an ayah belongs next to the passage it explains.
 
-- [x] C46: An inserted ayah or hadith can be dragged on the tablet to a new spot on the page, and it is still there after the note is closed and reopened.
-- [x] C47: In text mode with the cursor in an inserted ayah or hadith (a paragraph the font shim treats as one), its move and width handles show beside it; no handle shows for any other paragraph, or outside text mode.
-- [x] C48: Dragging the handle n lines down moves the insert n lines down (within one line) through empty lines and past the end of the text; dragging up moves it through empty lines and stops at the text above; with the keyboard open, a drag stops above it.
-- [x] C49: Anti: a move adds or removes only empty lines; every paragraph keeps its text and its paragraph style, the moved insert included.
-- [x] C50: Anti: while there are enough empty lines below the insert, nothing below it moves; past them, the text below moves down by the shortfall only.
-- [x] C51: One undo puts the page back exactly as it was before the move (two when the move splits or joins the page's first paragraph, since xochitl restyles it and the move restyles it back).
-- [x] C52: Anti: reading the page's text for the handle leaves the clipboard holding what it held before.
-- [x] C53: On a page without handwriting, an insert can be dragged to any spot in the page's text column in one motion, sideways as well as up and down (an outline follows the finger; vertical lands on the nearest line), its width set with a second handle, and it stays there after the document is closed and reopened.
-- [x] C54: The ayah and hadith bar works on PDF pages: inserting, and moving an insert anywhere on the page, as on notes; there the column spans the whole page, so inserts reach the margins.
-- [x] C55: Anti: on note pages the bar never changes the text column's width, so the principal's own typed text keeps its layout.
-- [x] C56: Anti: undoing a move restores the insert's layout too, not just its text: no margins are left behind once the placement characters go.
-- [x] C57: Anti: no midad move ever shifts or deletes a stroke of the principal's handwriting ("the text sticks to the drawing, can i disable this effect", 2026-10-19). Today this holds by not offering moves on pages that have handwriting.
-- [ ] C58: On a page with handwriting, an insert can still be placed anywhere, and placing or moving it never shifts or deletes a stroke.
+Then: "the text sticks to the drawing, can i disable this effect" (2026-10-19): typed text drags handwriting along with it, so new inserts live in a midad layer drawn over the page instead (principal's choice, Decisions 03:10).
+
+- [x] C46: An inserted ayah or hadith can be dragged on the tablet to a new spot on the page, and it is still there after the note is closed and reopened. (reopened 2026-10-19 03:10 for the midad layer; first passed with typed-text moves)
+- [ ] C47: [RETIRED — typed-text moves replaced by the midad layer, see Decisions 2026-10-19 03:10] In text mode with the cursor in an inserted ayah or hadith, its move and width handles show beside it.
+- [ ] C48: [RETIRED — see Decisions 2026-10-19 03:10] Dragging the handle n lines down moves the insert n lines down.
+- [ ] C49: [RETIRED — see Decisions 2026-10-19 03:10] Anti: a move adds or removes only empty lines.
+- [ ] C50: [RETIRED — see Decisions 2026-10-19 03:10] Anti: nothing below the insert moves while empty lines last.
+- [ ] C51: [RETIRED — see Decisions 2026-10-19 03:10] One undo puts the page back as it was before the move.
+- [ ] C52: [RETIRED — see Decisions 2026-10-19 03:10] Anti: reading the page's text leaves the clipboard as it was.
+- [ ] C53: [RETIRED — superseded by C58 and C61, see Decisions 2026-10-19 03:10] On a page without handwriting, an insert can be dragged anywhere in the text column.
+- [x] C54: The ayah and hadith bar works on PDF pages: inserting, and moving an insert anywhere on the page (margins included), as on notes. (refined 2026-10-19 03:10: the layer needs no text column)
+- [x] C55: Anti: the bar never changes a page's typed text or its column width: a layer insert leaves `rootDocumentLength` and `rootDocumentTextWidth` as they were. (refined 2026-10-19 03:10)
+- [ ] C56: [RETIRED — see Decisions 2026-10-19 03:10] Anti: undoing a move restores the insert's margins.
+- [x] C57: Anti: no midad insert or move ever shifts or deletes a stroke of the principal's handwriting ("the text sticks to the drawing, can i disable this effect", 2026-10-19). (refined 2026-10-19 03:10: now holds because inserts never enter xochitl's text flow)
+- [x] C58: On a page with handwriting, an insert can still be placed anywhere, and placing or moving it never shifts or deletes a stroke.
+- [x] C59: A new ayah or hadith goes into the midad layer: drawn over the page in its category's font (KFGQPC for ayat, Amiri for hadith), right-aligned, wrapped to its box, and selected right away so it can be moved.
+- [ ] C60: Layer inserts are kept per document and page in `/home/root/.local/share/midad/layer.ini`, written atomically on every change; they come back after the document is closed and reopened and after xochitl restarts, and install, reinstall and uninstall leave that file alone.
+- [x] C61: A finger tap selects a layer insert. Selected, it follows a finger or the pen anywhere on the page (kept inside the page), a handle sets its width, − and + step its size, حذف removes it, and تم, a page turn or opening the search panel deselects it.
+- [x] C62: Anti: an unselected layer insert doesn't get in the pen's way: a stroke drawn across one lands in the page file like any stroke, and a finger drag that starts on it still scrolls or zooms the page.
+- [x] C63: A layer insert stays over the same spot of the page when the page is zoomed or scrolled.
+- [x] C64: Anti: typed inserts from before the layer (Tesr page 2) still render in their fonts, and the font shim is unchanged.
 
 ### F0 · Cross-cutting
 Why: this is the principal's daily device with real notes on it.
@@ -184,6 +192,12 @@ Why: this is the principal's daily device with real notes on it.
 | C56 | appearance | ink extents after undoing a placement change | back where the old placement puts it | rmshot + magick | Anti |
 | C57 | ui | page with handwriting vs without: handles and نقل shown? | hidden with handwriting, shown without | rmshot + rmhook | Anti |
 | C58 | probe | draw strokes, place and move an insert, decode the page file | every stroke live and at its place | rmpen + rmdump | Goal |
+| C59 | appearance | insert an ayah and a hadith on a page with strokes, screenshot | QPC and Amiri text over the page, selection frame shown | rmshot | Goal |
+| C60 | fs | layer.ini after insert, move, delete; reopen; restart xochitl; reinstall | entries match, inserts back after each | ssh cat + rmshot | Goal |
+| C61 | ui | tap, drag (finger and pen), width, −/+, حذف, تم, page turn | each acts as named | rminput + rmpen + rmshot + rmhook | Goal |
+| C62 | probe | pen stroke across an unselected insert; finger swipe starting on it | stroke in the page file; page scrolls | rmpen + rmdump + rmshot | Anti |
+| C63 | appearance | zoom a PDF page and scroll a note with an insert on it | insert stays over the same page content | rminput + rmshot | Goal |
+| C64 | appearance | Tesr page 2 after the layer ships; shim checksum | typed ayah in QPC, hadith in Amiri; shim bytes unchanged | rmshot + sha256 | Anti |
 
 ## Decisions
 
@@ -247,6 +261,8 @@ Why: this is the principal's daily device with real notes on it.
 - 2026-10-19 02:40: anywhere and PDFs shipped. The principal asked mid-build why the drag wasn't "omni direction like the floating toolbar"; the build already moved both ways, so the outline was changed to follow the finger smoothly and snap to a line only on release. A move carries the whole box and narrows it only against the column's edge; a width handle sets the left edge. Placement edits rewrite the tag with its run, so undo inserts text the shim sees. On PDF pages the bar is active (`document.fileType === Document.Pdf`), switches text on itself, and on first insert widens the page's column to the page (`rootDocumentTextWidth`), since PDFs hold no typed text of the principal's; on notes the column is left alone. Negative margins are clamped by Qt, so the column bounds sideways placement. A نقل button enters text mode and puts the cursor in the page's first insert, since PDF pages have no text tool. Verified on the test PDF (insert, narrow into the margin, move, undo, reopen) and on Tesr (move, two undos back to the 689-character original).
 - 2026-10-19 02:42: no independent second look this round, though the shim now edits block formats inside xochitl's insert path. Why: the edit plans are pure and property-tested with mutants caught; the shim change only adds margins to blocks it already categorizes, with no new exports and no Qt data relocations (flake checks); a startup crash rolls back through guard.sh; and every device case (notes, PDFs, undo, reopen) was surveyed. A review of `placeBlocks` is the first thing to add if the shim grows again.
 - 2026-10-19 02:55: the principal found that "the text sticks to the drawing". Cause, from decoding page files with a read-only v6 reader and strokes drawn by a new pen injector (`rmpen`, Elan marker event2, X 0–11180, Y 0–15340): xochitl pins handwriting to the page's typed text. Strokes below the text's end go into groups anchored to the end (anchor id 0:2^48−1, type 2) and follow it; strokes over the text go into groups anchored to a nearby character; when that character is deleted, the stroke is deleted with it. Creating text on a PDF page pinned every existing stroke to the new end at once (three test strokes moved 20 px when the first ayah went in). A move that consumed the empty line under an insert deleted the test stroke pinned to that line. The principal's khelaf.margin.pdf page is intact: 87 live strokes; its four tombstones are xochitl moving them into its end groups and back. No xochitl setting turns this off. Safeguard shipped: on pages where `hasAnnotations` is true, the move handles and نقل are hidden; handles also hide while the cursor sits on xochitl's preliminary line breaks. Free placement on handwritten pages (C58) needs inserts that are not part of xochitl's text flow; the principal is choosing.
+- 2026-10-19 03:10: the principal chose "midad layer": inserts drawn by midad over the page and kept in midad's own file, never in xochitl's text, so handwriting is never pinned to them. I'm using it for every new insert, not only on pages with handwriting, since a page can gain handwriting later; typed inserts already on pages stay typed and keep their fonts through the unchanged shim. Typed-text moving retires (handles, نقل, page reads, PDF text mode, `move.js`), so C47–C53 and C56 are tombstoned and C46, C54, C55 and C57 reopen for the layer. Known costs: layer inserts don't show in xochitl's exports, thumbnails or cloud sync, and xochitl's undo doesn't cover them. Storage probe on the tablet: a QML `XMLHttpRequest` PUT writes a file:// URL only when its folder exists (status 0 either way), while QtCore `Settings` (Qt 6.8.2) creates the folders and writes through QSaveFile, so the layer is one INI file, `/home/root/.local/share/midad/layer.ini`, with each document's pages as a JSON value under its id, outside `/home/root/midad` so installs never touch it.
+- 2026-10-19 03:40: the layer draws on two levels. xochitl's pen surface manager keeps a `region` where the pen may write and cuts out every painted item stacked above the surface (Rectangles and Text; a bare Item with a MouseArea is not cut out), on top of explicit `PenInputBlocker`s. So unselected inserts are drawn in an item parented into xochitl's page container (`SceneViewsRoot`, under the pen surface), where the pen writes over them; the selected insert and its frame, width handle and toolbar are drawn in the bar, above the surface, where the pen and the finger drag it. Selection is a passive `TapHandler` on the bar (touchscreen only) that hit-tests the inserts' boxes, so xochitl still gets every touch. Insert text is laid out at its on-screen size rather than scaled from scene units.
 
 ## Remaining Work
 
@@ -257,12 +273,15 @@ Why: this is the principal's daily device with real notes on it.
 - [x] Read the Worker's quran-search-engine comparison when it lands; port a technique only if it clearly wins. (49ddfdf: ours wins every class but Latin phonetic, where QSE gets 25% vs our 0%; QSE needs ES2022 and runs 225–565 ms p50 on the host, so it stays out)
 - [ ] C21: check pen, eraser and the floating toolbar still behave with the bar loaded.
 - [ ] Old inserts carrying U+06DD (pre-QPC format, e.g. Tesr's first Fatiha block) show a doubled ornament under QPC — re-insert them, or have the shim hide U+06DD; the principal's call.
-- [ ] C17: make an ayah insert one undo again — the Subheading switch after the paste is its own step, and `cycleParagraphStyle` takes no merge mode.
-- [ ] The empty line split off a page's first paragraph shows 19 units taller until the note reloads (Qt gives the new line the insert's character format while editing live); undo and reopen show the stored 38.
-- [ ] A new insert on a PDF page lands at the page's full width, over the PDF's text, until it is narrowed; a default width in the margin would save that step, but which margin depends on the PDF.
-- [ ] Vertical placement snaps to lines (69.55 units); finer steps would need a top offset per paragraph, and xochitl's own paragraph spacing may live in the same block property. Not attempted.
+- [x] C17: make an ayah insert one undo again. (moot 2026-10-19 03:55: inserts no longer go into typed text)
+- [x] The empty line split off a page's first paragraph shows 19 units taller until the note reloads. (moot 2026-10-19 03:10: typed-text moves retired)
+- [x] A new insert on a PDF page lands at the page's full width until it is narrowed. (moot 2026-10-19 03:10: layer inserts start at a set width and move freely)
+- [x] Vertical placement snaps to lines (69.55 units). (moot 2026-10-19 03:10: layer inserts move continuously)
 - [ ] The tablet holds "midad test PDF" (uuid 45dbbc98-ff75-4e69-9b8b-83e46ff6e58e) and "midad test PDF 2" (uuid 0f6a2b54-abf7-4f46-8787-a9b9935d7a58) for testing; delete them when the principal says so.
-- [ ] Inserting typed text on a page with handwriting still pins that handwriting to the text, as typing does in xochitl; on PDFs, where pages had no typed text before, that is new behaviour.
+- [x] Inserting typed text on a page with handwriting still pins that handwriting to the text. (moot 2026-10-19 03:10: new inserts go into the layer; the principal's own typing still pins, as in stock xochitl)
+- [ ] Layer inserts don't appear in xochitl's PDF export, page thumbnails or cloud sync — a midad export, or rendering the layer into the page file, would be its own feature.
+- [ ] Layer inserts aren't covered by xochitl's undo — حذف is immediate.
+- [ ] Install the layer build on the tablet and check inserts come back after the xochitl restart (C60) — waiting for the principal, who was using the tablet when the build was ready; the tablet runs the probe build of the same code until then.
 
 ## Learning
 
@@ -276,6 +295,9 @@ Why: this is the principal's daily device with real notes on it.
 - conjectured: undoing a placement edit restores the layout, since undo restores the text; refuted by: the undo deleted the placement characters and the ayah stayed narrow, because a deletion never reaches `insertText`; learned: the shim only sees inserts; criterion now: placement edits rewrite the tag together with its run, so their undo inserts text again, and the shim gives an ayah or hadith without a run zero margins.
 - conjectured: a handle beside the insert's left edge can always be dragged; refuted by: with the insert starting at the screen's left, the handle sat at x 8 under xochitl's toolbar, which took the touch; learned: xochitl's left toolbar overlays the scene view; criterion now: handles stay at x ≥ 120.
 - conjectured: trading empty lines moves only the insert and leaves handwriting alone; refuted by: xochitl pins strokes to the typed text, so the strokes below an insert followed the text's end, and a stroke pinned to a consumed empty line was deleted; learned: on a page with handwriting every edit of the text flow is also an edit of the handwriting; criterion now: no midad edit removes or shifts text lines on a page with handwriting, and each such change is checked by decoding the page file for live strokes.
+- conjectured: a QML `XMLHttpRequest` PUT to a file:// URL creates the file, folders included, as xochitl's environment allows file writes; refuted by: on the tablet a PUT into a missing folder wrote nothing, and its status was 0 just like a successful PUT's; learned: XHR file writes need an existing folder and report nothing either way; criterion now: midad's own state is written through QtCore `Settings`, which creates its folders and writes atomically, and every write is checked by reading the file back.
+- conjectured: hiding a control hides its `PenInputBlocker`, and an insert without a blocker lets the pen through; refuted by: pen strokes across an unselected insert never reached the page file, and the pen manager's region showed the insert's exact rectangle cut out, along with the آية and حديث buttons; learned: a blocker keeps blocking while hidden, and xochitl also cuts every painted item above its pen surface out of the pen's area; criterion now: blockers exist only while their control shows (a Loader), and anything the pen must write over is drawn under the pen surface; each change is checked against `surfaceManager.region` and a stroke in the page file.
+- conjectured: an insert missing from a 3× zoomed screenshot meant its text failed to render there; refuted by: test texts drew at every size up to 122 px, and the insert's right-aligned 687 px of text sat at x 1733–2420, past the screen's edge; learned: a box being on screen says nothing about where its glyphs are; criterion now: before calling something unrendered, compute where its ink should land (content width and alignment) and zoom or pan so that spot is on screen.
 
 ## Verification
 
@@ -312,3 +334,16 @@ Why: this is the principal's daily device with real notes on it.
 - C55: Tesr column 1144 before and after moves (probe); code widens only when it creates a PDF page's text.
 - C56: PDF undo: ayah redrawn with its right edge at ~985 (old placement); Tesr two undos: full width again, survey = original.
 - C57: test PDF 2 page 2 (strokes, `hasAnnotations` true): only آية and حديث shown, no نقل; Tesr page 2 (no strokes, `hasAnnotations` false): نقل shown; page file decode showed the stroke a pre-safeguard move had deleted.
+- C46: test PDF 2 page 2: ayah dragged by finger (Δ828 px → 1017.6 units, x held at the page edge), by pen, narrowed, resized; document closed and reopened from the library: both inserts back at rev 8 (screenshot l34).
+- C54: test PDF 2 page 2: ayah and hadith inserted through إدراج, moved into the right margin and across the page, narrowed to 764 units.
+- C55: `rootDocumentLength` 52 (PDF) and 689 (Tesr), `rootDocumentTextWidth` 1835 and 1152, the same before and after every insert and move; the bar holds no controller call besides two bounding-box reads (rg).
+- C57: test PDF 2 page 2 decoded before and after: the three original strokes and the old tombstone byte-identical, text runs identical, only the 5 test strokes added; the principal's khelaf.margin.pdf page after their own layer insert: 88 live strokes, 0 typed characters.
+- C58: inserts placed on the stroke page and moved to (51, 697), (174, 1189), (−563, 1189) and across the margin, strokes intact (C57).
+- C59: screenshots l3 (112:1 in QPC, selected with frame, handle and toolbar), l31 (Bukhari 1 in Amiri, wrapped to three lines), l37 (94:6 on Tesr).
+- C61: finger tap selects and blank-page tap deselects (TapHandler); finger drag and pen drag move it (pen leaves no ink); width handle 1501 → 764 with the right edge kept; + 44→50→56, − →50; حذف removed it (rev 2, empty page); تم, a page turn and opening the panel each cleared the selection.
+- C62: `surfaceManager.region` no longer cuts out unselected inserts; a stroke across one is in the page file; a finger swipe starting on one turned the page without selecting it.
+- C63: pinch to 2.35× around the insert: its overlap with xochitl's typed «ٱللَّهُ ٱلصَّمَدُ» unchanged (l29 vs l30); `rmpinch` two-slot injector.
+- C64: Tesr page 2 after the layer: typed 2:255 in QPC and the hadith in Amiri (l36); bundle shim md5 ae7a0d7c = installed, no change under device/native.
+- C17: حذف on a fresh insert removed it in one tap (Tesr, rev 1 → 2).
+- C60 (partial): written through QSettings; `layer.ini` read back after every save (`savedRev`, `bun test test/layer` 14 pass); reopen restored inserts; install suite `midad layer untouched` (GNU and busybox, 45/0). Not yet: inserts after a real xochitl restart.
+- Layer logic: `bun test test/layer` 14 pass, 44,416 checks, 5 of 5 mutants caught; full `bun run test` 52 pass; `nix flake check` passes; Vellum lint PASS with the new tarball sha512.

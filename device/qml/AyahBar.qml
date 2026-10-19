@@ -1,14 +1,17 @@
-// Ayah bar: a draggable floating button on note pages that opens a fuzzy ayah search and
-// inserts the chosen ayat as typed text (KFGQPC Uthmanic HAFS v22, Subheading paragraph).
-// In text mode, a handle beside an insert moves it up or down the page.
+// Ayah bar: floating buttons on note and PDF pages that open a fuzzy ayah or hadith search.
+// The chosen ayat (KFGQPC Uthmanic HAFS v22) or hadith (Amiri) go into the midad layer: drawn
+// here over the page and kept in midad's own file, never in xochitl's typed text, so xochitl
+// never pins handwriting to them. A finger tap selects an insert; selected, it moves with a
+// finger or the pen, a handle sets its width, and its toolbar sizes or removes it.
 // Loaded by midad.qmd inside xochitl's DeviceSceneView; `sceneView` is that view's root.
 import QtQuick
+import QtCore as QC
 import com.remarkable
 import common
 import xofm.libs.peninput
 import "search.js" as Search
 import "hadith-search.js" as HadithSearch
-import "move.js" as Move
+import "layer.js" as Layer
 
 Item {
     id: bar
@@ -18,7 +21,6 @@ Item {
     readonly property bool pdfPage: !!sceneView && !!sceneView.document && sceneView.document.fileType === Document.Pdf
     readonly property bool active: !!sceneView && !!sceneView.controller && (sceneView.notePage || pdfPage)
     visible: active
-    onActiveChanged: contentChanged()
 
     readonly property string dataDir: "file:///home/root/midad/data/"
     readonly property string quranFont: "kfgqpc_hafs_uthmanic_script"
@@ -46,57 +48,42 @@ Item {
     property int lastSearchMs: -1
     property var lastInsert: ({})
 
-    // Remembered when the panel opens: where typed text should go.
-    property bool openedInTextMode: false
-    property int openedCursorIndex: -1
-
-    // Moving inserts anywhere in the page's text column; move.js plans the edits. Up and down
-    // trade empty lines; sideways is the insert's own right and left margins, which the font
-    // shim reads from invisible characters after its tag.
-    readonly property real linePitch: 69.55 // scene units per empty Paragraph line
-    readonly property real minWidth: 200    // narrowest an insert gets, in scene units
-    property string pageText: ""            // the page's typed text, as last read
-    property bool pageTextFresh: false
-    property bool reading: false
-    property bool seekInsert: false         // after the next read, put the cursor in an insert
-    property var clipboardBeforeRead: null
-    property var block: null                // the insert holding the cursor: {start, end}
-    property var moveFrom: null             // taken when a handle is pressed
-    property int dragLines: 0
-    property real dragDy: 0                 // where the finger is, before snapping to a line
-    property real dragRight: 0              // the placement being dragged to
-    property real dragLeft: 0
-    property bool moving: false
-    // xochitl pins handwriting to typed text: strokes below the text follow its end, strokes over
-    // it follow a line, and strokes pinned to a line that is deleted are deleted with it. A move
-    // trades and rewrites lines, so on a page with handwriting it could carry the handwriting
-    // along or erase it; there the handles stay hidden.
-    readonly property bool movable: active && !sceneView.controller.hasAnnotations
-    readonly property bool handleShown: movable && sceneView.textMode && !panel.visible && !moving && !!block
-                                        && !sceneView.controller.hasSelection
-                                        && !sceneView.controller.hasPreliminaryLineBreaks
-    readonly property var blockPlacement: block ? Move.placementOf(pageText.slice(block.start, block.end))
-                                                : ({ right: 0, left: 0 })
-    // The text column in scene units. The paragraph bounds xochitl reports keep the column's
-    // left edge and lose the margins from their width; the document's bounds pad the column by
-    // the same amount on each side.
-    readonly property var column: {
-        const c = sceneView ? sceneView.controller : null;
-        if (!c)
-            return { left: 0, width: 0 };
-        const b = c.textParagraphBounds, d = c.rootDocumentBoundingRect;
-        return { left: b.x, width: d.width - 2 * (b.x - d.x) };
+    // The midad layer (layer.js has the format): one INI file for every document, which QSettings
+    // writes through a temporary file and a rename. It sits outside /home/root/midad, so
+    // installing and uninstalling never touch it.
+    readonly property string layerFile: "file:///home/root/.local/share/midad/layer.ini"
+    QC.Settings {
+        id: layerStore
+        location: bar.layerFile
+        category: "layer"
     }
-    // The insert holding the cursor, in view coordinates, margins included.
-    readonly property rect blockRect: {
-        const c = sceneView ? sceneView.controller : null;
+
+    readonly property string docId: active && sceneView.document ? String(sceneView.document.id) : ""
+    readonly property string pageKey: active ? String(sceneView.pageId) : ""
+    property var layerDoc: Layer.emptyDoc()
+    property string layerDocId: ""
+    // This document's stored layer couldn't be read, so nothing is written over it.
+    property bool layerUnreadable: false
+    readonly property var pageInserts: Layer.pageInserts(layerDoc, pageKey)
+    property string selectedId: ""
+    readonly property var selectedInsert: insertById(selectedId)
+    // While the selected insert is dragged: where the drag began, and the insert's box so far.
+    property var dragFrom: null
+    property var live: null
+    property string layerNote: ""
+
+    onDocIdChanged: loadLayer()
+    onPageKeyChanged: deselect()
+
+    // Changes whenever the page is zoomed or scrolled, so bindings that map the page rerun.
+    readonly property var viewKey: {
         const tm = sceneView ? sceneView.tileManager : null;
-        if (!c || !tm)
-            return Qt.rect(0, 0, 0, 0);
-        void tm.scale; // map again when the page is zoomed or scrolled
-        void tm.center;
-        const b = c.textParagraphBounds, p = blockPlacement;
-        return sceneView.sceneToView(Qt.rect(column.left + p.left, b.y, column.width - p.left - p.right, b.height));
+        return tm ? [tm.scale, tm.center.x, tm.center.y] : [];
+    }
+    // View pixels per scene unit.
+    readonly property real viewScale: {
+        void viewKey;
+        return active ? sceneView.sceneToView(Qt.rect(0, 0, 1000, 1000)).width / 1000 : 1;
     }
 
     function arabicDigits(n) {
@@ -232,9 +219,7 @@ Item {
     }
 
     function openPanel(newMode) {
-        const c = sceneView.controller;
-        openedInTextMode = sceneView.textMode;
-        openedCursorIndex = openedInTextMode ? c.textCursorIndex : -1;
+        deselect();
         if (mode !== newMode) {
             mode = newMode;
             results = [];
@@ -253,298 +238,186 @@ Item {
         panel.visible = false;
     }
 
+    // The chosen ayat or hadith become a layer insert on the open page, selected so it can be
+    // moved straight away. Nothing goes into the page's typed text.
     function insertSelected() {
         if (selected < 0)
             return;
         const r = results[selected];
         const isAyah = mode === "ayah";
         const s = r.surah, a = r.ayah, b = isAyah ? r.ayah + span - 1 : 0;
-        // Invisible category tags (U+2061 ayah, U+2062 hadith) let the ayahfont shim give each
-        // paragraph its category's font at whatever size the user picks.
-        const text = isAyah ? "⁡" + compose(s, a, b)
-                            : "⁢" + r.item[4] + " " + hadithCitation(r.item);
+        const kind = isAyah ? "ayah" : "hadith";
+        const text = isAyah ? compose(s, a, b) : r.item[4] + " " + hadithCitation(r.item);
+        const ref = isAyah ? s + ":" + a + "-" + b : hadithCitation(r.item);
         closePanel();
 
+        const size = Layer.DEFAULT_SIZE[kind];
+        const page = pageRect();
+        // The part of the screen clear of the page's edges and the bar's buttons.
+        const view = sceneView.viewToScene(Qt.rect(0, 140, bar.width, bar.height - 280));
+        // Clear of what is on the page already: xochitl's typed text and handwriting, and inserts.
+        const boxes = [];
         const c = sceneView.controller;
-        // Text mode with focus on the page's typed text, at the remembered cursor or the end.
-        enterTextMode(sceneView.viewToScene(Qt.point(bar.width / 2, 40)));
-        const len = c.rootDocumentLength;
-        const at = (openedInTextMode && openedCursorIndex >= 0 && openedCursorIndex <= len) ? openedCursorIndex : len;
-        c.selectTextRange(at, at);
-
-        // Own paragraph, so the style change never touches the user's text.
-        const pre = at > 0 ? "\n" : "";
-        const post = at < len ? "\n" : "";
-        Clipboard.setTextFromString(pre + text + post);
-        c.pasteText(Clipboard.text, SceneController.KeepStyle);
-
-        // Ayat get the Subheading size. A fresh paste is always a plain paragraph, and
-        // textParagraphStyle lags right after a paste, so set it without reading it.
-        // Hadith stay at the plain Paragraph size.
-        const start = at + pre.length;
-        if (isAyah) {
-            c.selectTextRange(start + 1, start + 1);
-            c.cycleParagraphStyle(ParagraphStyle.Type.Subheading);
+        for (const r of [c.rootDocumentBoundingRect, c.itemsBoundingRect])
+            if (r.width > 0 && r.height > 0)
+                boxes.push({ x: r.x, y: r.y, w: r.width, h: r.height });
+        for (let i = 0; i < layerRepeater.count; i++) {
+            const d = layerRepeater.itemAt(i);
+            if (d)
+                boxes.push({ x: d.box.x, y: d.box.y, w: d.box.w, h: d.textHeight });
         }
-        c.selectTextRange(start + text.length, start + text.length);
-        lastInsert = { key: isAyah ? s + ":" + a + "-" + b : hadithCitation(r.item),
-                       at: at, length: len };
-    }
-
-    // xochitl offers typed text on note pages only and refuses text mode elsewhere. On a PDF page
-    // the bar switches it on itself: the text is kept in the page's annotation file like any
-    // typed text, and xochitl lays it out and loads it back as usual.
-    function enterTextMode(scenePoint) {
-        if (sceneView.notePage) {
-            sceneView.moveCursorWithPen(scenePoint);
-            return;
-        }
-        const c = sceneView.controller;
-        if (!c.hasRootDocument) {
-            c.createRootDocument(ParagraphStyle.Type.Paragraph);
-            // A PDF page holds no typed text but ours, so its column can span the whole page and
-            // inserts can go into the page's margins.
-            const page = sceneView.viewToScene(sceneView.pageBorderRect);
-            if (page.width > 0)
-                c.rootDocumentTextWidth = Math.floor(page.width - 40);
-        }
-        if (!sceneView.textMode) {
-            c.focusRootDocument();
-            sceneView.sceneView.textModeEnabled = true;
-            sceneView.forceActiveFocus();
-            c.setCursorVisible(true, true);
-        }
-        c.setCursorPosition(scenePoint, SceneController.MoveAnchor, SceneController.OverscrollAlwaysAllowed);
-    }
-
-    // The نقل button: text mode, and the cursor into an insert on this page, so its handles show.
-    function startMoving() {
-        if (sceneView.textMode && block)
-            return;
-        seekInsert = true;
-        enterTextMode(sceneView.viewToScene(Qt.point(bar.width / 2, 40)));
-        contentChanged();
-    }
-
-    // Reads the page's typed text with xochitl's own copy; finishRead puts the clipboard back.
-    // The controller runs the three calls in order, so nothing typed can land in between.
-    function readPage() {
-        const c = sceneView.controller;
-        if (!active || !sceneView.textMode || panel.visible || moving || reading || c.hasSelection)
-            return;
-        const len = c.rootDocumentLength;
-        const cur = c.textCursorIndex;
-        if (cur < 0 || cur > len)
-            return;
-        reading = true;
-        clipboardBeforeRead = Clipboard.text;
-        c.selectTextRange(0, len);
-        c.copySelectedText();
-        c.selectTextRange(cur, cur);
-        readTimeout.restart();
-    }
-
-    function finishRead(content) {
-        reading = false;
-        readTimeout.stop();
-        Clipboard.text = content;
-        pageText = Clipboard.textString();
-        pageTextFresh = pageText.length === sceneView.controller.rootDocumentLength;
-        // xochitl's own textCopied handler sets the clipboard too, so restore after it runs.
-        const before = clipboardBeforeRead;
-        Qt.callLater(() => { Clipboard.text = before; });
-        updateBlock();
-        if (seekInsert) {
-            seekInsert = false;
-            const first = block ? null : Move.firstInsert(pageText);
-            if (first)
-                sceneView.controller.selectTextRange(first.end, first.end);
+        const at = Layer.placeNew(page, view, boxes, Math.round(page.width * 0.8), size * 3);
+        const item = { id: Layer.newId(Date.now(), Math.random()), kind: kind, text: text, ref: ref,
+                       x: at.x, y: at.y, w: at.w, size: size };
+        if (savePage(Layer.storedPage(layerDoc, pageKey).concat([item]))) {
+            selectedId = item.id;
+            lastInsert = { key: ref, id: item.id, page: pageKey };
         }
     }
 
-    function contentChanged() {
-        pageTextFresh = false;
-        block = null;
-        readDelay.restart();
+    // The page in scene units. On note pages pageBorderRect comes back with its sides swapped
+    // (2160 by 1620 on the Paper Pro), so a note page is the screen's width at 100%, centred on
+    // x = 0, and as tall as it has been scrolled.
+    function pageRect() {
+        if (pdfPage)
+            return sceneView.viewToScene(sceneView.pageBorderRect);
+        const seen = sceneView.viewToScene(Qt.rect(0, 0, bar.width, bar.height));
+        return Qt.rect(-bar.width / 2, 0, bar.width, Math.max(bar.height, seen.y + seen.height));
     }
 
-    // The insert holding the cursor, if any (move.js: the paragraphs the font shim styles).
-    function updateBlock() {
-        const c = sceneView ? sceneView.controller : null;
-        if (!c || !pageTextFresh || moving) {
-            block = null;
-            // A read skipped while something was selected is retried once the cursor moves.
-            if (c && !pageTextFresh && !moving)
-                readDelay.restart();
-            return;
+    function note(text) {
+        layerNote = text;
+        noteTimer.restart();
+    }
+
+    function loadLayer() {
+        deselect();
+        const r = Layer.parseDoc(docId ? layerStore.value(docId, "") : "");
+        layerDocId = docId;
+        layerDoc = r.doc;
+        layerUnreadable = !r.ok;
+        if (!r.ok)
+            note("تعذّرت قراءة طبقة midad لهذا المستند، فلن يُكتب فوقها");
+    }
+
+    // Replaces the open page's list and writes the document's layer, then looks for the write in
+    // the file itself.
+    function savePage(list) {
+        if (!docId || docId !== layerDocId || layerUnreadable) {
+            note("لم يُحفظ: تعذّرت قراءة طبقة midad لهذا المستند");
+            return false;
         }
-        block = Move.insertAt(pageText, c.textCursorIndex);
+        const doc = Layer.withPage(layerDoc, pageKey, list);
+        layerStore.setValue(docId, Layer.serialize(doc));
+        layerStore.sync();
+        layerDoc = doc;
+        checkSaved(docId, doc.rev);
+        return true;
     }
 
-    function styleName() {
-        const st = sceneView.controller.textParagraphStyle;
-        if (!st)
-            return "";
-        for (const n of ["Title", "Subheading", "Subheading2", "Paragraph"])
-            if (st.matchesButtonStyle(ParagraphStyle.Type[n]))
-                return n;
-        return "";
-    }
-
-    // which: "move" carries the insert, "width" drags its left edge.
-    function beginMove(x, y, which) {
-        if (!handleShown)
-            return;
-        const c = sceneView.controller;
-        const at = sceneView.viewToScene(Qt.point(x, y));
-        moveFrom = {
-            which: which,
-            layout: Move.layoutAround(pageText, block.start, block.end, c.textCursorIndex),
-            placement: blockPlacement,
-            column: column,
-            style: styleName(),
-            bounds: c.textParagraphBounds,
-            pressX: at.x,
-            pressY: at.y
+    function checkSaved(id, rev) {
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", layerFile);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE && Layer.savedRev(xhr.responseText, id) < rev)
+                bar.note("تعذّر حفظ طبقة midad");
         };
-        dragLines = 0;
-        dragDy = 0;
-        dragRight = blockPlacement.right;
-        dragLeft = blockPlacement.left;
+        xhr.send();
     }
 
-    function dragMove(x, y) {
-        if (!moveFrom)
-            return;
-        const m = moveFrom, at = sceneView.viewToScene(Qt.point(x, y));
-        const dx = Math.round((at.x - m.pressX) / 10) * 10;
-        const w = m.column.width, r = m.placement.right, l = m.placement.left;
-        if (m.which === "width") {
-            dragLeft = Math.max(0, Math.min(w - r - minWidth, l + dx));
-            return;
-        }
-        // The insert keeps its width until it meets the column's edge, then narrows against it.
-        let right = Math.max(0, r - dx), left = Math.max(0, l + dx);
-        if (w - right - left < minWidth) {
-            if (dx < 0)
-                right = w - left - minWidth;
-            else
-                left = w - right - minWidth;
-        }
-        dragRight = right;
-        dragLeft = left;
-        const b = m.bounds;
-        // Land where it can be seen: above the keyboard and xochitl's formatting bar when they
-        // are open. xochitl reports the keyboard at y = 0, though it sits at the screen's bottom.
-        let limit = bar.height;
-        if (Qt.inputMethod.visible) {
-            const kb = Qt.inputMethod.keyboardRectangle;
-            limit = (kb.y > 0 ? bar.mapFromItem(null, 0, kb.y).y : bar.height - kb.height) - 96;
-        }
-        const bottom = sceneView.viewToScene(Qt.point(0, limit - 24)).y;
-        const most = Math.max(0, Math.floor((bottom - b.y - b.height) / linePitch));
-        // The outline follows the finger; the insert lands on the nearest line.
-        dragDy = Math.max(-m.layout.emptyAbove * linePitch, Math.min(most * linePitch, at.y - m.pressY));
-        dragLines = Math.round(dragDy / linePitch);
+    function insertById(id) {
+        const l = pageInserts;
+        for (let i = 0; i < l.length; i++)
+            if (l[i].id === id)
+                return l[i];
+        return null;
     }
 
-    function endMove(x, y) {
-        if (!moveFrom)
-            return;
-        dragMove(x, y);
-        const m = moveFrom, k = dragLines, right = dragRight, left = dragLeft;
-        moveFrom = null;
-        dragLines = 0;
-        dragDy = 0;
-        if (k === 0 && right === m.placement.right && left === m.placement.left)
-            return;
-        moving = true;
-        block = null;
-        const layout = m.layout;
-        const plan = Move.planMoveTo(pageText, layout, k, true, right, left);
-        moveCheck.pending = { state: applyMove(plan, layout, m.style, SceneController.NoMerge),
-                              targetY: m.bounds.y + plan.lines * linePitch,
-                              pushed: plan.lines > layout.emptyBelow && layout.textBelow,
-                              controller: sceneView.controller, style: m.style, tries: 0, restyled: false,
-                              corrected: false };
-        moveCheck.restart();
+    function select(id) {
+        if (selectedId !== id) {
+            cancelDrag();
+            selectedId = id;
+        }
     }
 
-    function cancelMove() {
-        moveFrom = null;
-        dragLines = 0;
-        dragDy = 0;
+    function deselect() {
+        cancelDrag();
+        selectedId = "";
     }
 
-    // Runs a move.js plan as one batch of controller calls, merged into one undo step after the
-    // first edit, and returns the layout around the insert afterwards.
-    function applyMove(plan, layout, style, firstMerge) {
-        const c = sceneView.controller;
-        const clipboard = Clipboard.text;
-        let merge = firstMerge;
-        if (plan.lines > 0 && layout.start === 0 && style && style !== "Paragraph") {
-            // Moving the page's first paragraph down splits it: the empty line keeps the insert's
-            // style and the insert gets Paragraph. Switching it to Paragraph first keeps every
-            // empty line a Paragraph line, so undo restores the same spacing; finishMove
-            // switches it back.
-            c.selectTextRange(layout.cursor, layout.cursor);
-            c.cycleParagraphStyle(ParagraphStyle.Type.Paragraph);
-            merge = SceneController.MergeWithPreviousAction;
-        }
-        for (const e of plan.edits) {
-            c.selectTextRange(e[0], e[1]);
-            Clipboard.setTextFromString(e[2]);
-            c.pasteText(Clipboard.text, SceneController.KeepStyle, merge);
-            merge = SceneController.MergeWithPreviousAction;
-        }
-        c.selectTextRange(plan.after.cursor, plan.after.cursor);
-        Clipboard.text = clipboard;
-        return plan.after;
+    function cancelDrag() {
+        dragFrom = null;
+        live = null;
     }
 
-    // Runs once the batch has landed. A move that split the page's first paragraph, or joined
-    // the insert to the page's first line, left it in another style, so its own goes back
-    // first. Then, if the insert sits more than half a line from the outline (line spacing
-    // depends on the styles around it), one round of empty lines above it fixes that.
-    function finishMove() {
-        const c = active ? sceneView.controller : null;
-        const p = moveCheck.pending;
-        // The page or note changed under the move: leave the new one alone.
-        if (c !== p.controller) {
-            moveCheck.pending = null;
-            moving = false;
-            contentChanged();
-            return;
+    // A finger tap on an insert selects it; anywhere else it drops the selection.
+    function tapAt(p) {
+        for (let i = layerRepeater.count - 1; i >= 0; i--) {
+            const d = layerRepeater.itemAt(i);
+            if (d && p.x >= d.x && p.x <= d.x + d.width && p.y >= d.y && p.y <= d.y + d.height) {
+                select(d.modelData.id);
+                return;
+            }
         }
-        if (c.textCursorIndex !== p.state.cursor && p.tries < 6) {
-            p.tries += 1;
-            moveCheck.restart();
+        deselect();
+    }
+
+    // which: "move" drags the whole insert, "width" its left edge. p is in the bar's coordinates.
+    function beginDrag(which, p, d) {
+        const it = insertById(selectedId);
+        if (!it)
             return;
-        }
-        if (p.style && !p.restyled && styleName() !== p.style) {
-            p.restyled = true;
-            c.cycleParagraphStyle(ParagraphStyle.Type[p.style]);
-            moveCheck.restart();
+        dragFrom = { which: which, px: p.x, py: p.y, x: it.x, y: it.y, w: it.w, h: d.textHeight, page: pageRect() };
+        live = { x: it.x, y: it.y, w: it.w };
+    }
+
+    function dragTo(p) {
+        const f = dragFrom;
+        if (!f)
             return;
+        const dx = (p.x - f.px) / viewScale, dy = (p.y - f.py) / viewScale;
+        if (f.which === "move") {
+            const m = Layer.moved(f, dx, dy, f.h, f.page);
+            live = { x: m.x, y: m.y, w: f.w };
+        } else {
+            const m = Layer.widened(f, dx, f.page);
+            live = { x: m.x, y: f.y, w: m.w };
         }
-        let n = p.corrected ? 0 : Math.round((p.targetY - c.textParagraphBounds.y) / linePitch);
-        const s = p.state;
-        // Never split the insert again, and never merge it into the empty line above it.
-        if (n > 0 && s.start === 0)
-            n = 0;
-        if (n < 0)
-            n = -Math.min(-n, Math.max(0, s.deleteFrom > 0 ? s.emptyAbove : s.emptyAbove - 1));
-        if (n !== 0) {
-            p.corrected = true;
-            // Text the move pushed down was pushed by the same error, so it comes back too.
-            p.state = applyMove(Move.planMove(s, n, !p.pushed), s, "", SceneController.MergeWithPreviousAction);
-            p.tries = 0;
-            moveCheck.restart();
+    }
+
+    // Saving rebuilds every insert's item, the one being touched included, so changes are saved
+    // after the touch has been handled.
+    function endDrag() {
+        const f = dragFrom, l = live;
+        if (!f || !l)
             return;
-        }
-        moveCheck.pending = null;
-        moving = false;
-        contentChanged();
+        Qt.callLater(() => {
+            if (dragFrom !== f)
+                return;
+            if (l.x !== f.x || l.y !== f.y || l.w !== f.w)
+                savePage(Layer.patchInsert(Layer.storedPage(layerDoc, pageKey), selectedId,
+                                           { x: Math.round(l.x), y: Math.round(l.y), w: Math.round(l.w) }));
+            cancelDrag();
+        });
+    }
+
+    function resize(dir) {
+        const it = insertById(selectedId);
+        if (!it)
+            return;
+        const size = Layer.stepSize(it.size, dir);
+        if (size !== it.size)
+            Qt.callLater(() => savePage(Layer.patchInsert(Layer.storedPage(layerDoc, pageKey), it.id, { size: size })));
+    }
+
+    function removeSelected() {
+        const id = selectedId;
+        if (!id)
+            return;
+        Qt.callLater(() => {
+            deselect();
+            savePage(Layer.removeInsert(Layer.storedPage(layerDoc, pageKey), id));
+        });
     }
 
     // On-device search timing over a fixed query mix (dev: ayahBench).
@@ -588,50 +461,279 @@ Item {
         onTriggered: bar.runSearch()
     }
 
-    Timer {
-        id: readDelay
-        interval: 300
-        onTriggered: bar.readPage()
-    }
 
     Timer {
-        id: readTimeout
-        interval: 1500
-        onTriggered: bar.reading = false
+        id: noteTimer
+        interval: 4000
+        onTriggered: bar.layerNote = ""
     }
 
-    Timer {
-        id: moveCheck
-        property var pending: null
-        interval: 150
-        onTriggered: bar.finishMove()
+    // Finger taps for selecting. The handler only watches (a passive grab), so xochitl still
+    // gets every touch for scrolling and zooming; the pen never reaches it.
+    TapHandler {
+        acceptedDevices: PointerDevice.TouchScreen
+        enabled: bar.active && !panel.visible
+        onTapped: (eventPoint) => bar.tapAt(eventPoint.position)
     }
 
-    Connections {
-        target: bar.active ? bar.sceneView.controller : null
-        function onTextCopied(content) {
-            if (bar.reading)
-                bar.finishRead(content);
+    // An insert drawn at its place on the page: box is {x, y, w} in scene units.
+    component InsertView: Item {
+        id: view
+        property var box: ({ x: 0, y: 0, w: 1 })
+        property string text: ""
+        property string kind: "ayah"
+        property real size: 44
+        // In scene units.
+        readonly property real textHeight: body.height / bar.viewScale
+        readonly property point at: {
+            void bar.viewKey;
+            const r = bar.sceneView.sceneToView(Qt.rect(box.x, box.y, box.w, 1));
+            return Qt.point(r.x, r.y);
         }
-        function onTextCursorIndexChanged() {
-            bar.updateBlock();
-        }
-        function onRootDocumentLengthChanged() {
-            bar.contentChanged();
-        }
-        function onDocumentContentChanged() {
-            bar.contentChanged();
+        x: at.x
+        y: at.y
+        width: body.width
+        height: body.height
+
+        // Laid out at the size it shows at, rather than scaled, so glyphs are drawn sharp at every
+        // zoom.
+        Text {
+            id: body
+            width: view.box.w * bar.viewScale
+            text: view.text
+            font.family: view.kind === "ayah" ? bar.quranFont : bar.hadithFont
+            font.pixelSize: Math.max(1, Math.round(view.size * bar.viewScale))
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignRight
+            color: "black"
         }
     }
 
-    Connections {
-        target: bar.sceneView
-        function onTextModeChanged() {
-            bar.contentChanged();
+    // xochitl's page container, the parent of its page views.
+    readonly property var pagesRoot: {
+        const k = sceneView ? sceneView.children : [];
+        for (let i = 0; i < k.length; i++)
+            if (k[i].objectName === "SceneViewsRoot")
+                return k[i];
+        return null;
+    }
+
+    // The layer: the open page's inserts. xochitl takes anything painted above its pen surface
+    // out of the pen's area, so the inserts are drawn inside the page container, under that
+    // surface, where the pen writes over them as over the page.
+    Item {
+        parent: bar.pagesRoot || bar
+        width: bar.width
+        height: bar.height
+        z: 100
+        visible: bar.active
+
+        Repeater {
+            id: layerRepeater
+            model: bar.active ? bar.pageInserts : []
+
+            InsertView {
+                required property var modelData
+                box: modelData
+                text: modelData.text
+                kind: modelData.kind
+                size: modelData.size
+                visible: modelData.id !== bar.selectedId
+            }
         }
-        function onControllerChanged() {
-            bar.cancelMove();
-            bar.contentChanged();
+    }
+
+    // Pen presses go to the page unless a blocker covers the spot. A blocker keeps blocking while
+    // hidden, so each one exists only while the control it covers is shown.
+    Component {
+        id: penBlocker
+        PenInputBlocker {
+            manager: bar.sceneView.penInput.surfaceManager
+        }
+    }
+
+    // The selected insert, drawn above the pen surface with its controls: there the pen stops
+    // writing and drags it instead, like a finger.
+    Loader {
+        anchors.fill: parent
+        active: bar.active && !!bar.selectedInsert
+
+        sourceComponent: Item {
+            readonly property var it: bar.selectedInsert || ({ x: 0, y: 0, w: 1, text: "", kind: "ayah", size: 44 })
+
+            InsertView {
+                id: ins
+                box: bar.live || parent.it
+                text: parent.it.text
+                kind: parent.it.kind
+                size: parent.it.size
+
+                Rectangle {
+                    x: -12
+                    y: -10
+                    width: parent.width + 24
+                    height: parent.height + 20
+                    color: "transparent"
+                    border.color: "black"
+                    border.width: 3
+                    radius: 8
+                }
+
+                // The insert is its own move handle.
+                MouseArea {
+                    anchors.fill: parent
+                    anchors.margins: -12
+                    preventStealing: true
+                    onPressed: (mouse) => bar.beginDrag("move", mapToItem(bar, mouse.x, mouse.y), ins)
+                    onPositionChanged: (mouse) => bar.dragTo(mapToItem(bar, mouse.x, mouse.y))
+                    onReleased: bar.endDrag()
+                    onCanceled: bar.cancelDrag()
+
+                    Loader {
+                        anchors.fill: parent
+                        active: parent.visible
+                        sourceComponent: penBlocker
+                    }
+                }
+
+                // Width handle on the left edge, where the lines end: drag it to narrow or widen.
+                Rectangle {
+                    visible: !bar.dragFrom || bar.dragFrom.which === "width"
+                    width: 52
+                    height: 120
+                    radius: 26
+                    color: "white"
+                    border.color: "black"
+                    border.width: 3
+                    // Clear of xochitl's toolbar on the left, which would take the touch.
+                    x: Math.max(120 - ins.x, -width - 22)
+                    y: ins.height / 2 - height / 2
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 10
+                        Repeater {
+                            model: 2
+                            Rectangle { width: 5; height: 44; radius: 2; color: "black" }
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -20
+                        preventStealing: true
+                        onPressed: (mouse) => bar.beginDrag("width", mapToItem(bar, mouse.x, mouse.y), ins)
+                        onPositionChanged: (mouse) => bar.dragTo(mapToItem(bar, mouse.x, mouse.y))
+                        onReleased: bar.endDrag()
+                        onCanceled: bar.cancelDrag()
+
+                        Loader {
+                            anchors.fill: parent
+                            active: parent.visible
+                            sourceComponent: penBlocker
+                        }
+                    }
+                }
+
+                // Toolbar above the insert, right edges together; below it when there's no room
+                // above.
+                Rectangle {
+                    visible: !bar.dragFrom
+                    width: tools.width + 20
+                    height: 100
+                    radius: 12
+                    color: "white"
+                    border.color: "black"
+                    border.width: 3
+                    x: Math.max(120 - ins.x, Math.min(bar.width - 8 - width - ins.x, ins.width - width + 12))
+                    y: ins.y - height - 28 >= 16 ? -height - 28 : ins.height + 28
+
+                    // Touches between the buttons stop here.
+                    MouseArea {
+                        anchors.fill: parent
+
+                        Loader {
+                            anchors.fill: parent
+                            active: parent.visible
+                            sourceComponent: penBlocker
+                        }
+                    }
+
+                    Row {
+                        id: tools
+                        anchors.centerIn: parent
+                        spacing: 10
+                        layoutDirection: Qt.RightToLeft
+
+                        Repeater {
+                            model: [
+                                { label: "حذف", act: "remove" },
+                                { label: "−", act: "smaller" },
+                                { label: "+", act: "bigger" },
+                                { label: "تم", act: "done" }
+                            ]
+
+                            Rectangle {
+                                required property var modelData
+                                readonly property bool primary: modelData.act === "done"
+                                width: 110
+                                height: 80
+                                radius: 10
+                                color: primary ? "black" : "white"
+                                border.color: "black"
+                                border.width: 2
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: parent.modelData.label
+                                    color: parent.primary ? "white" : "black"
+                                    font.family: bar.uiFont
+                                    font.pixelSize: parent.modelData.label.length === 1 ? 50 : 36
+                                    font.bold: parent.primary
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        const a = parent.modelData.act;
+                                        if (a === "remove")
+                                            bar.removeSelected();
+                                        else if (a === "smaller")
+                                            bar.resize(-1);
+                                        else if (a === "bigger")
+                                            bar.resize(1);
+                                        else
+                                            bar.deselect();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Short notices from the layer, e.g. when a save didn't reach the file.
+    Rectangle {
+        visible: bar.layerNote !== ""
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: 40
+        width: noteText.width + 48
+        height: noteText.height + 28
+        radius: 12
+        color: "black"
+
+        Text {
+            id: noteText
+            anchors.centerIn: parent
+            width: Math.min(implicitWidth, bar.width - 200)
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
+            text: bar.layerNote
+            color: "white"
+            font.family: bar.uiFont
+            font.pixelSize: 32
         }
     }
 
@@ -698,143 +800,6 @@ Item {
             drag.maximumX: bar.width - hadithFab.width
             drag.maximumY: bar.height - hadithFab.height
             onClicked: bar.openPanel("hadith")
-        }
-    }
-
-    // Move button, below the hadith one: brings up the handles of an insert on this page. PDF
-    // pages have no text tool, so there it is the way back to an insert.
-    Rectangle {
-        id: moveFab
-        width: 112
-        height: 112
-        radius: 56
-        color: "white"
-        border.color: "black"
-        border.width: 3
-        x: bar.width - width - 36
-        y: Math.round(bar.height * 0.42) + 272
-        visible: !panel.visible && bar.movable
-
-        Text {
-            anchors.centerIn: parent
-            text: "نقل"
-            font.family: bar.uiFont
-            font.pixelSize: 34
-            color: "black"
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            preventStealing: true
-            drag.target: moveFab
-            drag.minimumX: 0
-            drag.minimumY: 0
-            drag.maximumX: bar.width - moveFab.width
-            drag.maximumY: bar.height - moveFab.height
-            onClicked: bar.startMoving()
-        }
-    }
-
-    // Where a dragged insert will land, in view coordinates. A narrower insert wraps to more
-    // lines, so its height is estimated from the width it gets.
-    readonly property rect ghostRect: {
-        if (!moveFrom || !sceneView)
-            return Qt.rect(0, 0, 0, 0);
-        const m = moveFrom;
-        const was = m.column.width - m.placement.left - m.placement.right;
-        const w = m.column.width - dragLeft - dragRight;
-        const h = Math.max(60, m.bounds.height * was / w);
-        return sceneView.sceneToView(Qt.rect(m.column.left + dragLeft, m.bounds.y + dragDy, w, h));
-    }
-
-    Rectangle {
-        visible: !!bar.moveFrom
-        x: bar.ghostRect.x - 12
-        y: bar.ghostRect.y - 8
-        width: bar.ghostRect.width + 24
-        height: bar.ghostRect.height + 16
-        color: "transparent"
-        border.color: "black"
-        border.width: 3
-        radius: 8
-    }
-
-    // Move handle, at the insert's right edge (where its lines start): drag it anywhere.
-    Rectangle {
-        readonly property rect box: bar.moveFrom ? bar.ghostRect : bar.blockRect
-        width: 76
-        height: 140
-        radius: 38
-        color: "white"
-        border.color: "black"
-        border.width: 3
-        visible: bar.moveFrom ? bar.moveFrom.which === "move" : bar.handleShown
-        x: Math.min(bar.width - width - 8, box.x + box.width + 10)
-        y: box.y + Math.min(box.height, 2 * height) / 2 - height / 2
-
-        Column {
-            anchors.centerIn: parent
-            spacing: 10
-            Repeater {
-                model: 3
-                Rectangle { width: 36; height: 5; radius: 2; color: "black" }
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            anchors.margins: -20
-            preventStealing: true
-            onPressed: (mouse) => { const p = mapToItem(bar, mouse.x, mouse.y); bar.beginMove(p.x, p.y, "move"); }
-            onPositionChanged: (mouse) => { const p = mapToItem(bar, mouse.x, mouse.y); bar.dragMove(p.x, p.y); }
-            onReleased: (mouse) => { const p = mapToItem(bar, mouse.x, mouse.y); bar.endMove(p.x, p.y); }
-            onCanceled: bar.cancelMove()
-
-            // Pen presses go to the page unless blocked here.
-            PenInputBlocker {
-                anchors.fill: parent
-                manager: bar.sceneView.penInput.surfaceManager
-            }
-        }
-    }
-
-    // Width handle, at the insert's left edge: drag it to make the insert narrower or wider.
-    Rectangle {
-        readonly property rect box: bar.moveFrom ? bar.ghostRect : bar.blockRect
-        width: 52
-        height: 120
-        radius: 26
-        color: "white"
-        border.color: "black"
-        border.width: 3
-        visible: bar.moveFrom ? bar.moveFrom.which === "width" : bar.handleShown
-        // Clear of xochitl's toolbar on the left, which would take the touch.
-        x: Math.max(120, box.x - width - 10)
-        // Clear of xochitl's format menu, which sits beside the paragraph's first line.
-        y: Math.max(box.y + 80, box.y + box.height / 2 - height / 2)
-
-        Row {
-            anchors.centerIn: parent
-            spacing: 10
-            Repeater {
-                model: 2
-                Rectangle { width: 5; height: 44; radius: 2; color: "black" }
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            anchors.margins: -20
-            preventStealing: true
-            onPressed: (mouse) => { const p = mapToItem(bar, mouse.x, mouse.y); bar.beginMove(p.x, p.y, "width"); }
-            onPositionChanged: (mouse) => { const p = mapToItem(bar, mouse.x, mouse.y); bar.dragMove(p.x, p.y); }
-            onReleased: (mouse) => { const p = mapToItem(bar, mouse.x, mouse.y); bar.endMove(p.x, p.y); }
-            onCanceled: bar.cancelMove()
-
-            PenInputBlocker {
-                anchors.fill: parent
-                manager: bar.sceneView.penInput.surfaceManager
-            }
         }
     }
 
