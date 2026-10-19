@@ -9,11 +9,15 @@ midad is a collection of extensions for the reMarkable Paper Pro that enables Is
 
 It covers the whole Quran (6,236 ayat) and Sahih al-Bukhari and Sahih Muslim (about 13,800 matns). Everything runs on the tablet, offline.
 
-![A note with Ayat al-Kursi in the KFGQPC Quran font and a hadith from Sahih al-Bukhari in Amiri, both inserted by the bar. The آية and حديث buttons on the right open the search panels.](docs/note.png)
+![The opening page of Sahih al-Bukhari, كتاب بدء الوحى, open on the tablet with three midad inserts in its margin: 4:163 in the KFGQPC Quran font beside the chapter title, Bukhari 3215 in Amiri beside hadith 2, and 96:1-5 beside the passage that quotes them. Around them are handwritten marks in colour: a yellow highlight on «إنما الأعمال بالنيات», a red circle round the hadith number, a blue brace tying hadith 2 to its margin note, a red underline under the quoted ayat, and a cyan highlight the pen drew straight over the margin ayah. The آية and حديث buttons on the right open the search panels.](docs/page.png)
 
-| Ayah search: «الحي القيوم» | Hadith search: «انما الاعمال بالنيات» |
+| Ayah search: «انا اوحينا اليك» | Hadith search: «انما الاعمال بالنيات» |
 |---|---|
-| ![The ayah panel lists Al Imran 2, Al-Baqarah 255, Taha 111 and Al-Furqan 58 for the query, with Al-Baqarah 255 selected and a stepper for how many ayat to insert.](docs/ayah-search.png) | ![The hadith panel lists Bukhari 1, Muslim 1907, Bukhari 6953 and Bukhari 6689 for the query, each with its book.](docs/hadith-search.png) |
+| ![The ayah panel lists An-Nisa 163, Yusuf 3, Yunus 2 and Taha 38 for the query, with An-Nisa 163 selected and a stepper for how many ayat to insert.](docs/ayah-search.png) | ![The hadith panel lists Bukhari 1, Muslim 1907, Bukhari 6953 and Bukhari 6689 for the query, each with its book.](docs/hadith-search.png) |
+
+Tap an insert to move it: drag it anywhere on the page with a finger or the pen, set its width with the handle on its left edge, or use the toolbar to change its size or remove it.
+
+![A selected insert, Bukhari 3215 in the margin, inside a frame with the width handle on its left edge and a toolbar above it: حذف, −, + and تم. The blue brace and the hadith it annotates are beside it.](docs/edit.png)
 
 ## Requirements
 

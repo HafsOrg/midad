@@ -3,9 +3,9 @@ task: "Ayah toolbar with Arabic keyboard and fuzzy search on reMarkable"
 slug: 20261018-031836_rm-ayah-toolbar
 project: midad
 phase: climbing
-progress: 52/55
+progress: 53/55
 started: 2026-10-18T03:18:36+03:00
-updated: 2026-10-19T03:58:00+03:00
+updated: 2026-10-19T04:45:00+03:00
 principal_stated_goal: "I've created a test note for you, proceed by creating our ayah toolbar, we can use a local version of https://github.com/quran-ws/quran-png to insert ayah(s), with accurate fuzzy search."
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 4
@@ -117,8 +117,8 @@ Why: anyone with a Paper Pro on xovi (the principal included, after a reset) can
 - [x] C39: A Vellum VELBUILD for the addon exists in the repo, follows Vellum's format, and notes that a person must submit it (no AI-written PR text or co-author trailers).
 - [x] C40: Anti: the shipped QMD carries no dev surfaces (no message-broker probe/reload hooks); those live in a separate dev QMD.
 - [x] C41: Anti: install and uninstall touch only the files the bundle ships (plus their staging and the guard's parking dir); /home/root/ayah-backups and every xochitl document stay untouched.
-- [x] C42: The README opens with real tablet screenshots: a note holding an ayah in the QPC font and a hadith in Amiri, then the ayah and hadith panels, each with a query, ranked results and the Arabic keyboard.
-- [x] C43: Anti: no preview shows the principal's own documents, file names or other personal data, and the image files carry no metadata; every shot comes from the test note.
+- [x] C42: The README opens with real tablet screenshots, in colour: a page holding layer inserts (ayat in the QPC font, a hadith in Amiri) among coloured handwriting, then the ayah and hadith panels, each with a query, ranked results and the Arabic keyboard, then a selected insert with its controls. (refined 2026-10-19 04:40: the principal asked for "pretty new pictures" and "use colors")
+- [x] C43: Anti: no preview shows the principal's own documents, file names or other personal data, and the image files carry no metadata; every shot comes from the test note or the midad demo document.
 - [x] C44: The product is named midad everywhere: GitHub repo HafsOrg/midad, README and flake description in the principal's words, tarball midad-<v>-aarch64.tar.gz, Vellum package midad, tablet folder /home/root/midad, and midad.qmd, midad-kbd.rcc and midad.conf in xovi's shared folders; no tracked file outside this ISA's history keeps the old product name.
 - [x] C45: Anti: the principal's tablet ends the rename with exactly one install, the midad one: no ayah-toolbar folder, ayahBar.qmd, ayah-kbd.rcc or ayah-toolbar.conf left, xochitl healthy with the shim loaded from /home/root/midad, and /home/root/ayah-backups untouched.
 
@@ -141,7 +141,7 @@ Then: "the text sticks to the drawing, can i disable this effect" (2026-10-19): 
 - [x] C57: Anti: no midad insert or move ever shifts or deletes a stroke of the principal's handwriting ("the text sticks to the drawing, can i disable this effect", 2026-10-19). (refined 2026-10-19 03:10: now holds because inserts never enter xochitl's text flow)
 - [x] C58: On a page with handwriting, an insert can still be placed anywhere, and placing or moving it never shifts or deletes a stroke.
 - [x] C59: A new ayah or hadith goes into the midad layer: drawn over the page in its category's font (KFGQPC for ayat, Amiri for hadith), right-aligned, wrapped to its box, and selected right away so it can be moved.
-- [ ] C60: Layer inserts are kept per document and page in `/home/root/.local/share/midad/layer.ini`, written atomically on every change; they come back after the document is closed and reopened and after xochitl restarts, and install, reinstall and uninstall leave that file alone.
+- [x] C60: Layer inserts are kept per document and page in `/home/root/.local/share/midad/layer.ini`, written atomically on every change; they come back after the document is closed and reopened and after xochitl restarts, and install, reinstall and uninstall leave that file alone.
 - [x] C61: A finger tap selects a layer insert. Selected, it follows a finger or the pen anywhere on the page (kept inside the page), a handle sets its width, − and + step its size, حذف removes it, and تم, a page turn or opening the search panel deselects it.
 - [x] C62: Anti: an unselected layer insert doesn't get in the pen's way: a stroke drawn across one lands in the page file like any stroke, and a finger drag that starts on it still scrolls or zooms the page.
 - [x] C63: A layer insert stays over the same spot of the page when the page is zoomed or scrolled.
@@ -264,6 +264,8 @@ Why: this is the principal's daily device with real notes on it.
 - 2026-10-19 03:10: the principal chose "midad layer": inserts drawn by midad over the page and kept in midad's own file, never in xochitl's text, so handwriting is never pinned to them. I'm using it for every new insert, not only on pages with handwriting, since a page can gain handwriting later; typed inserts already on pages stay typed and keep their fonts through the unchanged shim. Typed-text moving retires (handles, نقل, page reads, PDF text mode, `move.js`), so C47–C53 and C56 are tombstoned and C46, C54, C55 and C57 reopen for the layer. Known costs: layer inserts don't show in xochitl's exports, thumbnails or cloud sync, and xochitl's undo doesn't cover them. Storage probe on the tablet: a QML `XMLHttpRequest` PUT writes a file:// URL only when its folder exists (status 0 either way), while QtCore `Settings` (Qt 6.8.2) creates the folders and writes through QSaveFile, so the layer is one INI file, `/home/root/.local/share/midad/layer.ini`, with each document's pages as a JSON value under its id, outside `/home/root/midad` so installs never touch it.
 - 2026-10-19 03:40: the layer draws on two levels. xochitl's pen surface manager keeps a `region` where the pen may write and cuts out every painted item stacked above the surface (Rectangles and Text; a bare Item with a MouseArea is not cut out), on top of explicit `PenInputBlocker`s. So unselected inserts are drawn in an item parented into xochitl's page container (`SceneViewsRoot`, under the pen surface), where the pen writes over them; the selected insert and its frame, width handle and toolbar are drawn in the bar, above the surface, where the pen and the finger drag it. Selection is a passive `TapHandler` on the bar (touchscreen only) that hit-tests the inserts' boxes, so xochitl still gets every touch. Insert text is laid out at its on-screen size rather than scaled from scene units.
 
+- 2026-10-19 04:40: README pictures, from the principal's "go for it, also create pretty new pictures for the readme" and, mid-run, "use colors". A demo document carries them: the opening page of Sahih al-Bukhari (كتاب بدء الوحى, hadith 1 to 3, texts from midad's own hadith data, set in Amiri with typst and a wide note margin), copied in as a v2 PDF document before the install restart. Its margin holds three inserts placed beside what they belong to: 4:163 by the chapter title (Bukhari opens the chapter with it), Bukhari 3215 by hadith 2 (Muslim 2333 was the first pick, but its matn starts mid-name in the corpus), and 96:1-5 by the passage that quotes them. Marks are drawn with the principal's floating-toolbar presets (yellow and cyan highlighter, blue and red pen), one injected stroke each along a smoothed path, and the original preset was selected again afterwards. Screenshots stay in colour as 192-colour palette PNGs.
+
 ## Remaining Work
 
 - [ ] Remember the button's position across reloads and restarts — currently resets to the right edge.
@@ -277,11 +279,11 @@ Why: this is the principal's daily device with real notes on it.
 - [x] The empty line split off a page's first paragraph shows 19 units taller until the note reloads. (moot 2026-10-19 03:10: typed-text moves retired)
 - [x] A new insert on a PDF page lands at the page's full width until it is narrowed. (moot 2026-10-19 03:10: layer inserts start at a set width and move freely)
 - [x] Vertical placement snaps to lines (69.55 units). (moot 2026-10-19 03:10: layer inserts move continuously)
-- [ ] The tablet holds "midad test PDF" (uuid 45dbbc98-ff75-4e69-9b8b-83e46ff6e58e) and "midad test PDF 2" (uuid 0f6a2b54-abf7-4f46-8787-a9b9935d7a58) for testing; delete them when the principal says so.
+- [ ] The tablet holds "midad test PDF" (uuid 45dbbc98-ff75-4e69-9b8b-83e46ff6e58e), "midad test PDF 2" (uuid 0f6a2b54-abf7-4f46-8787-a9b9935d7a58) and "midad demo" (uuid 1eaf01f1-bdf4-45ce-8e31-32006c382f38, the README page) for testing; delete them when the principal says so.
+- [ ] Muslim 2333b's matn starts mid-name ("هِشَامٍ، سَأَلَ…"): the corpus split cut "الحارث بن" into the isnad. Other narrations may share it; worth a sweep of matns that start with a name fragment.
 - [x] Inserting typed text on a page with handwriting still pins that handwriting to the text. (moot 2026-10-19 03:10: new inserts go into the layer; the principal's own typing still pins, as in stock xochitl)
 - [ ] Layer inserts don't appear in xochitl's PDF export, page thumbnails or cloud sync — a midad export, or rendering the layer into the page file, would be its own feature.
 - [ ] Layer inserts aren't covered by xochitl's undo — حذف is immediate.
-- [ ] Install the layer build on the tablet and check inserts come back after the xochitl restart (C60) — waiting for the principal, who was using the tablet when the build was ready; the tablet runs the probe build of the same code until then.
 
 ## Learning
 
@@ -298,6 +300,7 @@ Why: this is the principal's daily device with real notes on it.
 - conjectured: a QML `XMLHttpRequest` PUT to a file:// URL creates the file, folders included, as xochitl's environment allows file writes; refuted by: on the tablet a PUT into a missing folder wrote nothing, and its status was 0 just like a successful PUT's; learned: XHR file writes need an existing folder and report nothing either way; criterion now: midad's own state is written through QtCore `Settings`, which creates its folders and writes atomically, and every write is checked by reading the file back.
 - conjectured: hiding a control hides its `PenInputBlocker`, and an insert without a blocker lets the pen through; refuted by: pen strokes across an unselected insert never reached the page file, and the pen manager's region showed the insert's exact rectangle cut out, along with the آية and حديث buttons; learned: a blocker keeps blocking while hidden, and xochitl also cuts every painted item above its pen surface out of the pen's area; criterion now: blockers exist only while their control shows (a Loader), and anything the pen must write over is drawn under the pen surface; each change is checked against `surfaceManager.region` and a stroke in the page file.
 - conjectured: an insert missing from a 3× zoomed screenshot meant its text failed to render there; refuted by: test texts drew at every size up to 122 px, and the insert's right-aligned 687 px of text sat at x 1733–2420, past the screen's edge; learned: a box being on screen says nothing about where its glyphs are; criterion now: before calling something unrendered, compute where its ink should land (content width and alignment) and zoom or pan so that spot is on screen.
+- conjectured: piping evdev events through `ssh … cat > /dev/input/eventN` is safe at any speed, since each write holds whole events; refuted by: a fast stroke stream failed with "cat: write error: Invalid argument" after five points, which stayed on the page as a stray stroke; learned: ssh delivers the stream in chunks that can cut an event, and evdev rejects a partial one; criterion now: the tablet side re-cuts the stream with `dd bs=24 iflag=fullblock`, and a drawing session ends by decoding the page file for stray strokes.
 
 ## Verification
 
@@ -318,8 +321,8 @@ Why: this is the principal's daily device with real notes on it.
 - C36: real tablet — `nix run .#install` VERIFIED + SWAP 24 files, guard healthy after 10 s, status "up to date", shim mapped; second run "up to date", xochitl pid 4903 before and after, addon inode/size/mtime unchanged; `--dev` swapped 1 file, healthy after 9 s; screenshot tesr-installed2 (QPC at three sizes, آية/حديث buttons).
 - C37: `nix run .#uninstall` REMOVED 4 paths, healthy after 9 s, pid 4204 without libayahfont.so; 0 addon files left; screenshot tap1 (no bar).
 - C41: inode/size/mtime of every file under /home/root, before uninstall and after each step: outside the addon only 11 xochitl state files changed (rewritten at each start), 0 document files, 6270 files before and after, ayah-backups md5 identical.
-- C42: docs/note.png, docs/ayah-search.png, docs/hadith-search.png, shot on Tesr page 2 ("الحي القيوم" → 2:255 inserted, "انما الاعمال بالنيات" → Bukhari 1 inserted); `marked@14.1.4 --gfm` renders the hero `<img>` and a `<table>` with both panels.
-- C43: all three viewed: only Tesr page 2, the panels, the keyboard and stock toolbars; each PNG holds only IHDR/IDAT/IEND chunks.
+- C42: docs/page.png, docs/ayah-search.png, docs/hadith-search.png, docs/edit.png, shot on the midad demo document ("انا اوحينا اليك" → 4:163, "صلصلة الجرس" → Bukhari 3215 and "اقرا باسم ربك الذي خلق" → 96:1-5 inserted, marks in the principal's yellow and cyan highlighter and blue and red pen presets); `marked@14.1.4 --gfm` renders all four `<img>` and the panel `<table>`. (First set, 2026-10-18: docs/note.png on Tesr page 2.)
+- C43: all four viewed: only the demo page, the panels, the keyboard, xochitl's toolbar and the floating toolbar's pen presets; each PNG holds only IHDR/PLTE/IDAT/IEND chunks. (First set: only IHDR/IDAT/IEND, grayscale.)
 - C44: commits 3860a2c, 3d79a8c; `nix flake check` passes; install suite 44/0 with GNU and busybox; `bun run test` 38/0 (= baseline); Vellum lint `PASS: midad`; `gh repo view` → midad, PRIVATE; old-name search over tracked files (excluding ISA.md) empty.
 - C45: tablet after migration: `status --dev` up to date (24 files), pid 13203 LD_PRELOAD and maps → /home/root/midad/lib/libayahfont.so; no ayah-toolbar dir or ayah* file in either xovi folder; ayah-backups md5 = snapshot E; outside midad only xochitl state files changed; screenshot mig4 (Tesr page 2, آية/حديث buttons, QPC + Amiri).
 - C46: Tesr page 2 surveyed before closing and after reopening: every paragraph at the same position and style (ayah 409.1, hadith 896.2).
@@ -345,5 +348,5 @@ Why: this is the principal's daily device with real notes on it.
 - C63: pinch to 2.35× around the insert: its overlap with xochitl's typed «ٱللَّهُ ٱلصَّمَدُ» unchanged (l29 vs l30); `rmpinch` two-slot injector.
 - C64: Tesr page 2 after the layer: typed 2:255 in QPC and the hadith in Amiri (l36); bundle shim md5 ae7a0d7c = installed, no change under device/native.
 - C17: حذف on a fresh insert removed it in one tap (Tesr, rev 1 → 2).
-- C60 (partial): written through QSettings; `layer.ini` read back after every save (`savedRev`, `bun test test/layer` 14 pass); reopen restored inserts; install suite `midad layer untouched` (GNU and busybox, 45/0). Not yet: inserts after a real xochitl restart.
+- C60: written through QSettings; `layer.ini` read back after every save (`savedRev`, `bun test test/layer` 14 pass); reopen restored inserts; install suite `midad layer untouched` (GNU and busybox, 45/0); the real install (c636cda) swapped the bar, removed move.js and restarted xochitl: layer.ini md5 012f2f38 before and after, status up to date, and test PDF 2's inserts back in place after the restart.
 - Layer logic: `bun test test/layer` 14 pass, 44,416 checks, 5 of 5 mutants caught; full `bun run test` 52 pass; `nix flake check` passes; Vellum lint PASS with the new tarball sha512.
